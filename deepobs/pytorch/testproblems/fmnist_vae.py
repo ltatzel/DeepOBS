@@ -69,7 +69,7 @@ class fmnist_vae(UnregularizedTestproblem):
         self.regularization_groups = self.get_regularization_groups()
 
     def get_batch_loss_and_accuracy_func(
-        self, reduction="mean", add_regularization_if_available=True
+        self, reduction="mean", add_regularization_if_available=True, internals=False
     ):
         """Gets a new batch and calculates the loss and accuracy (if available)
         on that batch. This is a default implementation for image classification.
@@ -77,9 +77,14 @@ class fmnist_vae(UnregularizedTestproblem):
 
         Args:
             return_forward_func (bool): If ``True``, the call also returns a function that calculates the loss on the current batch. Can be used if you need to access the forward path twice.
+            internals (bool): Whether the forward function should return a dictionary
+                containing internal tensors (inputs, labels, outputs, ...).
+                Default: ``False``.
         Returns:
             float, float, (callable): loss and accuracy of the model on the current batch. If ``return_forward_func`` is ``True`` it also returns the function that calculates the loss on the current batch.
         """
+        assert internals is False, "Returning internal values is not supported."
+
         inputs, _ = self._get_next_batch()
         inputs = inputs.to(self._device)
 

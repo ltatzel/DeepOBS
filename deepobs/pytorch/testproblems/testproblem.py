@@ -2,7 +2,7 @@
 """Base class for DeepOBS test problems."""
 import abc
 from contextlib import nullcontext
-from typing import Callable, ContextManager, Tuple, Type
+from typing import Any, Callable, ContextManager, Dict, Optional, Tuple, Type, Union
 
 import torch
 from torch import Tensor, no_grad
@@ -108,8 +108,14 @@ class TestProblem(abc.ABC):
         return batch
 
     def get_batch_loss_and_accuracy_func(
-        self, reduction: str = "mean", add_regularization_if_available: bool = True
-    ) -> Callable[[], Tuple[Tensor, float]]:
+        self,
+        reduction: Optional[str] = "mean",
+        add_regularization_if_available: Optional[bool] = True,
+        internals: Optional[bool] = False,
+    ) -> Callable[
+        [],
+        Union[Tuple[Tensor, float], Tuple[Tensor, float, Dict[str, Any]]],
+    ]:
         """Get new batch and create forward function.
 
         Creates the forward function that calculates loss and accuracy (if available)
@@ -123,6 +129,9 @@ class TestProblem(abc.ABC):
                 in the mini-batch is returned as a tensor.
             add_regularization_if_available: If true, regularization is
                 added to the loss.
+            internals: Whether the forward function should return a dictionary
+                containing internal tensors (inputs, labels, outputs, ...).
+                Default: ``False``.
 
         Returns:
             Function that calculates the loss/accuracy on the current batch.
@@ -132,11 +141,14 @@ class TestProblem(abc.ABC):
         inputs = inputs.to(self._device)
         labels = labels.to(self._device)
 
-        def forward_func() -> Tuple[Tensor, float]:
+        def forward_func() -> Union[
+            Tuple[Tensor, float], Tuple[Tensor, float, Dict[str, Any]]
+        ]:
             """Evaluate the forward pass on a fixed mini-batch.
 
             Returns:
-                Mini-batch loss and model accuracy.
+                Mini-batch loss and model accuracy. Additionally returns internal
+                tensors if option was enabled in the factory that created this function.
             """
             with self._get_forward_context(self.phase)():
                 outputs = self.net(inputs)
@@ -148,7 +160,13 @@ class TestProblem(abc.ABC):
             else:
                 regularizer_loss = torch.tensor(0.0, device=torch.device(self._device))
 
-            return loss + regularizer_loss, accuracy
+            total_loss: Tensor = loss + regularizer_loss
+
+            if internals:
+                info = {"inputs": inputs, "labels": labels, "outputs": outputs}
+                return total_loss, accuracy, info
+            else:
+                return total_loss, accuracy
 
         return forward_func
 
