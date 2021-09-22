@@ -84,14 +84,7 @@ class mnist_vae(UnregularizedTestproblem):
         inputs = inputs.to(self._device)
 
         def forward_func():
-            # in evaluation phase is no gradient needed
-            if self.phase in ["train_eval", "test", "valid"]:
-                with torch.no_grad():
-                    outputs, means, std_devs = self.net(inputs)
-                    loss = self.loss_function(reduction=reduction)(
-                        outputs, inputs, means, std_devs
-                    )
-            else:
+            with self._get_forward_context(self.phase)():
                 outputs, means, std_devs = self.net(inputs)
                 loss = self.loss_function(reduction=reduction)(
                     outputs, inputs, means, std_devs

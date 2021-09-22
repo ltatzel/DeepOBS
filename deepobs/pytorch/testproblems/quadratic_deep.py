@@ -3,6 +3,7 @@
 
 import numpy as np
 import torch
+from torch import Tensor
 
 from ..datasets.quadratic import quadratic
 from .testproblem import UnregularizedTestproblem
@@ -115,41 +116,15 @@ class quadratic_deep(UnregularizedTestproblem):
         Hessian = np.matmul(np.transpose(R), np.matmul(D, R))
         return torch.from_numpy(Hessian).to(torch.float32)
 
-    def get_batch_loss_and_accuracy_func(
-        self, reduction="mean", add_regularization_if_available=True
-    ):
-        """Get new batch and create forward function that calculates loss on that batch.
+    @staticmethod
+    def _compute_accuracy(outputs: Tensor, labels: Tensor) -> float:
+        """Return zero as model accuracy (non-existent for this regression task).
 
         Args:
-            reduction (str): The reduction that is used for returning the loss.
-                Can be 'mean', 'sum' or 'none' in which case each indivual loss
-                in the mini-batch is returned as a tensor.
-            add_regularization_if_available (bool): If true, regularization is added to the loss.
+            outputs: Model predictions.
+            labels: Ground truth.
 
         Returns:
-            callable:  The function that calculates the loss/accuracy on the current batch.
+            0
         """
-        inputs, labels = self._get_next_batch()
-        inputs = inputs.to(self._device)
-        labels = labels.to(self._device)
-
-        def forward_func():
-            # in evaluation phase is no gradient needed
-            if self.phase in ["train_eval", "test", "valid"]:
-                with torch.no_grad():
-                    outputs = self.net(inputs)
-                    loss = self.loss_function(reduction=reduction)(outputs, labels)
-            else:
-                outputs = self.net(inputs)
-                loss = self.loss_function(reduction=reduction)(outputs, labels)
-
-            accuracy = 0.0
-
-            if add_regularization_if_available:
-                regularizer_loss = self.get_regularization_loss()
-            else:
-                regularizer_loss = torch.tensor(0.0, device=torch.device(self._device))
-
-            return loss + regularizer_loss, accuracy
-
-        return forward_func
+        return 0.0

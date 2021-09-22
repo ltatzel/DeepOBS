@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 """Base class for DeepOBS test problems."""
 import abc
+from contextlib import nullcontext
+from typing import Callable, ContextManager, Tuple, Type
 
 import torch
+from torch import Tensor, no_grad
 
 from .. import config
 
@@ -105,8 +108,8 @@ class TestProblem(abc.ABC):
         return batch
 
     def get_batch_loss_and_accuracy_func(
-        self, reduction="mean", add_regularization_if_available=True
-    ):
+        self, reduction: str = "mean", add_regularization_if_available: bool = True
+    ) -> Callable[[], Tuple[Tensor, float]]:
         """Get new batch and create forward function.
 
         Creates the forward function that calculates loss and accuracy (if available)
@@ -115,38 +118,30 @@ class TestProblem(abc.ABC):
         this method accordingly.
 
         Args:
-            reduction (str): The reduction that is used for returning the loss.
+            reduction: The reduction that is used for returning the loss.
                 Can be 'mean', 'sum' or 'none' in which case each indivual loss
                 in the mini-batch is returned as a tensor.
-            add_regularization_if_available (bool): If true, regularization is
+            add_regularization_if_available: If true, regularization is
                 added to the loss.
 
         Returns:
-            callable:  The function that calculates the loss/accuracy on the
-                current batch.
+            Function that calculates the loss/accuracy on the current batch.
+
         """
         inputs, labels = self._get_next_batch()
         inputs = inputs.to(self._device)
         labels = labels.to(self._device)
 
-        def forward_func():
-            correct = 0.0
-            total = 0.0
+        def forward_func() -> Tuple[Tensor, float]:
+            """Evaluate the forward pass on a fixed mini-batch.
 
-            # in evaluation phase is no gradient needed
-            if self.phase in ["train_eval", "test", "valid"]:
-                with torch.no_grad():
-                    outputs = self.net(inputs)
-                    loss = self.loss_function(reduction=reduction)(outputs, labels)
-            else:
+            Returns:
+                Mini-batch loss and model accuracy.
+            """
+            with self._get_forward_context(self.phase)():
                 outputs = self.net(inputs)
                 loss = self.loss_function(reduction=reduction)(outputs, labels)
-
-            _, predicted = torch.max(outputs.data, 1)
-            total += labels.size(0)
-            correct += (predicted == labels).sum().item()
-
-            accuracy = correct / total
+                accuracy = self._compute_accuracy(outputs, labels)
 
             if add_regularization_if_available:
                 regularizer_loss = self.get_regularization_loss()
@@ -156,6 +151,46 @@ class TestProblem(abc.ABC):
             return loss + regularizer_loss, accuracy
 
         return forward_func
+
+    @staticmethod
+    def _get_forward_context(phase: str) -> Type[ContextManager]:
+        """Get autodiff context for the forward pass (no gradients in evaluation phase).
+
+        Args:
+            phase: Phase of the forward pass.
+
+        Returns:
+            Context manager class for the forward pass.
+
+        Raises:
+            ValueError: If ``phase`` is invalid.
+        """
+        if phase in ["train_eval", "test", "valid"]:
+            context = no_grad
+        elif phase == "train":
+            context = nullcontext
+        else:
+            raise ValueError(f"Unknown phase: {phase}")
+
+        return context
+
+    @staticmethod
+    def _compute_accuracy(outputs: Tensor, labels: Tensor) -> float:
+        """Compute the model accuracy.
+
+        Args:
+            outputs: Model predictions.
+            labels: Ground truth.
+
+        Returns:
+            Model accuracy
+        """
+        _, predictions = outputs.max(dim=1)
+        correct = (predictions == labels).sum()
+        total = labels.numel()
+        accuracy = correct / total
+
+        return float(accuracy.item())
 
     def get_batch_loss_and_accuracy(
         self, reduction="mean", add_regularization_if_available=True
