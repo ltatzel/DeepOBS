@@ -79,26 +79,19 @@ class fmnist_vae(UnregularizedTestproblem):
             return_forward_func (bool): If ``True``, the call also returns a function that calculates the loss on the current batch. Can be used if you need to access the forward path twice.
         Returns:
             float, float, (callable): loss and accuracy of the model on the current batch. If ``return_forward_func`` is ``True`` it also returns the function that calculates the loss on the current batch.
-            """
+        """
         inputs, _ = self._get_next_batch()
         inputs = inputs.to(self._device)
 
         def forward_func():
-            # in evaluation phase is no gradient needed
-            # TODO move phase distinction to evaluate in runner?
-            if self.phase in ["train_eval", "test", "valid"]:
-                with torch.no_grad():
-                    outputs, means, std_devs = self.net(inputs)
-                    loss = self.loss_function(reduction=reduction)(
-                        outputs, inputs, means, std_devs
-                    )
-            else:
+            with self._get_forward_context(self.phase)():
                 outputs, means, std_devs = self.net(inputs)
                 loss = self.loss_function(reduction=reduction)(
                     outputs, inputs, means, std_devs
                 )
 
             accuracy = 0
+
             if add_regularization_if_available:
                 regularizer_loss = self.get_regularization_loss()
             else:
