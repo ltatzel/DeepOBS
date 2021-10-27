@@ -23,15 +23,15 @@ IDS_SEEDS = [f"seed_value={seed}" for seed in SEEDS]
 @pytest.mark.parametrize("dim", DIMS, ids=IDS_DIMS)
 def test_func(seed, dim):
 
+    torch.manual_seed(seed)
+
     # Initialize testproblem
     nf_quadratic = noise_free_quadratic(batch_size=8)
 
     # Create random symmetric pos. definite Hessian and `theta_init`
-    torch.manual_seed(seed)
-
     theta_init = torch.rand(dim)
     R = torch.rand(dim, dim)
-    H = R @ R.T + 0.01 * torch.diag(torch.ones(dim))
+    H = R @ R.T + 0.01 * torch.eye(dim)
 
     # Set up the problem
     nf_quadratic._dim = dim
@@ -61,9 +61,3 @@ def test_func(seed, dim):
         assert torch.allclose(
             loss_model, loss_manually
         ), "The model's loss and the manually computed quadratic loss deviate."
-
-
-if __name__ == "__main__":
-
-    # For debugging
-    test_func(seed=0, dim=10)

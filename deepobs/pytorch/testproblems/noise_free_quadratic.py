@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
-"""TODO Description of the testproblem."""
+"""Noise-free quadratic problem (network with two linear layers and MSE-loss)"""
 
+from contextlib import nullcontext
 import scipy.linalg
 import torch
 from torch.utils import data
@@ -28,7 +29,7 @@ class data_noise_free_quadratic(dataset.DataSet):
 
         # Check batch size
         assert batch_size <= min(
-            [train_size, valid_size, test_size]
+            train_size, valid_size, test_size
         ), "Batch size exceeds size of training/validation/test set"
 
         self._train_size = train_size
@@ -38,7 +39,7 @@ class data_noise_free_quadratic(dataset.DataSet):
         # This attribute is needed by _make_train_eval_dataloader
         self._train_eval_size = self._train_size
 
-        super(data_noise_free_quadratic, self).__init__(batch_size)
+        super().__init__(batch_size)
 
     def _make_train_and_valid_dataloader(self):
         """Creates the training and validation data loader."""
@@ -70,28 +71,17 @@ class data_noise_free_quadratic(dataset.DataSet):
 
 
 # Some helper functions
-def set_weights(linear_layer, weights, req_grad):
-    """Set weights in linear layer and choose if these parameters are
-    trainable.
+def set_param(linear_layer, param, param_str, req_grad):
+    """Set weights (`param_str = weight`) or biases (`param_str = bias`) in 
+    linear layer and choose if these parameters are trainable.
     """
-    w = linear_layer.weight
-    if weights.shape == w.data.shape:
-        w.data = weights
-        w.requires_grad = req_grad
-    else:
-        raise ValueError("Weights don't have the right shape")
+    p = getattr(linear_layer, param_str)
 
+    if param.shape != p.shape:
+        raise ValueError("parameters don't have the right shape")
 
-def set_biases(linear_layer, biases, req_grad):
-    """Set biases in linear layer and choose if these parameters are
-    trainable.
-    """
-    b = linear_layer.bias
-    if biases.shape == b.data.shape:
-        b.data = biases
-        b.requires_grad = req_grad
-    else:
-        raise ValueError("Biases don't have the right shape")
+    p.data = param
+    p.requires_grad = req_grad
 
 
 def torch_to_numpy(tensor):
@@ -113,7 +103,6 @@ def get_noise_free_quadratic_net(H, theta):
     by ``theta``) is ``theta.T @ H @ theta`` for arbitrary inputs with labels
     that are zero.
     """
-
     dim = H.shape[0]
 
     # Use the matrix square root from scipy
@@ -121,12 +110,12 @@ def get_noise_free_quadratic_net(H, theta):
 
     # First layer returns ``0 @ x + theta = theta``
     L1 = torch.nn.Linear(dim, dim, bias=True)
-    set_weights(L1, weights=torch.zeros(dim, dim), req_grad=False)
-    set_biases(L1, biases=theta.reshape(dim), req_grad=True)
+    set_param(L1, torch.zeros(dim, dim), "weight", req_grad=False)
+    set_param(L1, theta.reshape(dim), "bias", req_grad=True)
 
     # Second layer returns ``H_sqrt @ theta``
     L2 = torch.nn.Linear(dim, dim, bias=False)
-    set_weights(L2, weights=H_sqrt, req_grad=False)
+    set_param(L2, H_sqrt, "weight", req_grad=False)
 
     return torch.nn.Sequential(L1, L2)
 
@@ -142,15 +131,12 @@ class noise_free_quadratic(UnregularizedTestproblem):
     set to ``theta_init``.
     """
 
-    def __init__(
-        self, batch_size, weight_decay=None,
-    ):
+    def __init__(self, batch_size, weight_decay=None):
         """Here, the quadratic problem is defined. Note that the batch size
         is arbitrary: since the problem is noise-free, the batch size has no
         impact on the resulting loss.
         """
-
-        super(noise_free_quadratic, self).__init__(batch_size, weight_decay)
+        super().__init__(batch_size, weight_decay)
 
         # Define quadratic problem
         D = 20
@@ -166,7 +152,6 @@ class noise_free_quadratic(UnregularizedTestproblem):
         """Make sure that the attributes ``self._H`` and ``self._theta_init``
         "match" (dimensions) and that the Hessian is symmetric pos. definite.
         """
-
         H = self._H
         theta_init = self._theta_init
 
@@ -186,7 +171,6 @@ class noise_free_quadratic(UnregularizedTestproblem):
         """Initialize the global attributes ``net``, ``data`` and
         ``loss_function``.
         """
-
         # Network
         H_net = self._dim * self._H
         self.net = get_noise_free_quadratic_net(H_net, self._theta_init)
@@ -210,7 +194,6 @@ class noise_free_quadratic(UnregularizedTestproblem):
         of trying to computing it. Note that the accuracy does't make sense
         as a metric for our particular problem.
         """
-
         inputs, labels = self._get_next_batch()
         inputs = inputs.to(self._device)
         labels = labels.to(self._device)
@@ -220,11 +203,11 @@ class noise_free_quadratic(UnregularizedTestproblem):
         def forward_func():
 
             # Evaluate loss: In evaluation phase no gradient is needed
-            if self.phase in ["train_eval", "test", "valid"]:
-                with torch.no_grad():
-                    outputs = self.net(inputs)
-                    loss = loss_function(outputs, labels)
-            else:
+            with torch.no_grad() if self.phase in [
+                "train_eval",
+                "test",
+                "valid",
+            ] else nullcontext():
                 outputs = self.net(inputs)
                 loss = loss_function(outputs, labels)
 
