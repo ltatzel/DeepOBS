@@ -67,7 +67,7 @@ class mnist_vae(UnregularizedTestproblem):
         self.regularization_groups = self.get_regularization_groups()
 
     def get_batch_loss_and_accuracy_func(
-        self, reduction="mean", add_regularization_if_available=True
+        self, reduction="mean", add_regularization_if_available=True, internals=False
     ):
         """Get new batch and create forward function that calculates loss and accuracy (if available)
         on that batch.
@@ -76,9 +76,13 @@ class mnist_vae(UnregularizedTestproblem):
             reduction (str): The reduction that is used for returning the loss. Can be 'mean', 'sum' or 'none' in which \
             case each indivual loss in the mini-batch is returned as a tensor.
             add_regularization_if_available (bool): If true, regularization is added to the loss.
+            internals (bool): Whether the forward function should return a dictionary
+                containing internal tensors (inputs, labels, outputs, ...).
+                Default: ``False``.
         Returns:
             callable:  The function that calculates the loss/accuracy on the current batch.
         """
+        assert internals is False, "Returning internal values is not supported."
 
         inputs, _ = self._get_next_batch()
         inputs = inputs.to(self._device)
