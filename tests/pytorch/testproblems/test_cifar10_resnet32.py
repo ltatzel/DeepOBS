@@ -19,15 +19,17 @@ from deepobs.pytorch.testproblems.cifar10_resnet32 import (
 # ------------------------------------------------------------------------------
 # Print some information about the resnet and check if it works with BackPACK
 # ------------------------------------------------------------------------------
-
+torch.manual_seed(0)
 model = net_cifar10_resnet32()
-print("model = \n", model)
+# print("model = \n", model)
 
 # Get some CIFAR-10 data
-testproblem = cifar10_resnet32(batch_size=128)
-testproblem.set_up()
-train_loader, _ = testproblem.data._make_train_and_valid_dataloader()
-inputs, labels = next(iter(train_loader))
+# testproblem = cifar10_resnet32(batch_size=128)
+# testproblem.set_up()
+# train_loader, _ = testproblem.data._make_train_and_valid_dataloader()
+# batch_data = next(iter(train_loader))
+# torch.save(batch_data, "batch_data.pt")
+inputs, labels = torch.load("batch_data.pt")
 print("inputs.shape = ", inputs.shape)
 print("labels.shape = ", labels.shape)
 
@@ -35,9 +37,16 @@ print("labels.shape = ", labels.shape)
 # not supported in train mode)
 model = model.eval()
 
+# Forward pass
+outputs = model(inputs)
+print("outputs.shape = ", outputs.shape)
+
+lossfunc = torch.nn.CrossEntropyLoss()
+print("loss = ", lossfunc(outputs, labels))
+
 # Extend model and loss function
 lossfunc = extend(torch.nn.CrossEntropyLoss())
-# model = extend(model, use_converter=True)
+# model = extend(model, use_converter=True, debug=False)
 
 # Test first-order extention
 # print("\nTest first-order extension")
@@ -66,4 +75,4 @@ hyperparams = {
 }
 
 runner = pt.runners.StandardRunner(optimizer_class, hyperparams)
-runner.run("cifar10_resnet32", batch_size=128, num_epochs=2)
+# runner.run("cifar10_resnet32", batch_size=128, num_epochs=2)
