@@ -1,24 +1,24 @@
-"""Here, we implement the ``cifar10_resnet32`` testproblem that uses a 
-resnet-architecture. The original paper that introduced resnets can be found 
-here: https://arxiv.org/abs/1512.03385
+"""This script implements the ``cifar10_resnet32`` testproblem that uses a 
+resnet-architecture with 32 layers. The original paper that introduced resnets 
+can be found at https://arxiv.org/abs/1512.03385
 
-The code is copied from Yerlan Idelbayev's git repo "Proper ResNet 
-Implementation for CIFAR10/CIFAR100 in Pytorch", see
+The code is copied from Yerlan Idelbayev's git repo "Proper ResNet Implemen-
+tation for CIFAR10/CIFAR100 in Pytorch", see
 https://github.com/akamaster/pytorch_resnet_cifar10 (accessed December 7th, 
 2021). 
 
-We use the following adaptions:
+Changelog:
 - Added some documentation (e.g. some docstrings)
-- Replaced in-place operation in residual block (for BackPACK compatibility)
+- Replaced in-place operation in residual block 
+- Replaced functions from ``torch.nn.functional`` by modules from ``torch.nn``
+(for BackPACK compatibility). 
 
 TODO
 - Replace batch-normalization layers by group normalization, because per-sample
 quantities don't make sense with batch-normalization.  
 """
 
-import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.nn.init as init
 
 from ..datasets.cifar10 import cifar10
@@ -29,18 +29,6 @@ def _weights_init(m):
     """Initialization for linear and conv layers"""
     if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
         init.kaiming_normal_(m.weight)
-
-
-class LambdaLayer(nn.Module):
-    """A layer that implements an arbitrary function ``lambd`` (specified at
-    instantiation)"""
-
-    def __init__(self, lambd):
-        super(LambdaLayer, self).__init__()
-        self.lambd = lambd
-
-    def forward(self, x):
-        return self.lambd(x)
 
 
 class BasicBlock(nn.Module):
@@ -76,48 +64,22 @@ class BasicBlock(nn.Module):
         if stride != 1 or in_planes != planes:
             if option == "A":
                 """For CIFAR10 ResNet paper uses this option A."""
-                self.shortcut = LambdaLayer(
-                    lambda x: F.pad(
-                        x[:, :, ::2, ::2],
-                        (0, 0, 0, 0, planes // 4, planes // 4),
-                        "constant",
-                        0,
-                    )
+                self.shortcut = nn.ConstantPad1d(
+                    (0, 0, 0, 0, planes // 4, planes // 4), 0
                 )
-
-                # self.shortcut = torch.nn.ConstantPad3d(
-                #     (0, 0, 0, 0, planes // 4, planes // 4), 0
-                # )
-
             elif option == "B":
-                raise RuntimeError("Option B not supported")
-                self.shortcut = nn.Sequential(
-                    nn.Conv2d(
-                        in_planes,
-                        self.expansion * planes,
-                        kernel_size=1,
-                        stride=stride,
-                        bias=False,
-                    ),
-                    nn.BatchNorm2d(self.expansion * planes),
-                )
+                raise RuntimeError("Option B not supported.")
 
     def forward(self, x):
         out = self.relu1(self.bn1(self.conv1(x)))
         out = self.bn2(self.conv2(out))
 
-        # Note: In-place operations are not compatible with BackPACK
-        print("x.shape = ", x.shape)
+        if isinstance(self.shortcut, nn.Sequential):
+            shortcut_input = x
+        else:  # case A above
+            shortcut_input = x[:, :, ::2, ::2]
 
-        # Option F.pad
-        print("self.shortcut(x).shape = ", self.shortcut(x).shape)
-        out = out + self.shortcut(x)
-
-        # # Option nn.ConstantPad3d
-        # x_slice = x[:, :, ::2, ::2]
-        # print("self.shortcut(x_slice).shape = ", self.shortcut(x_slice).shape)
-        # out = out + self.shortcut(x_slice)
-
+        out = out + self.shortcut(shortcut_input)
         out = self.relu2(out)
         return out
 
