@@ -4,68 +4,79 @@ DeepOBS by running the StandardRunner.
 """
 
 import torch
-from backpack import extend
+from backpack import backpack, extend
+from backpack.extensions import BatchGrad, DiagGGNExact
 from torch.optim import SGD
 
 from deepobs import pytorch as pt
-from deepobs.pytorch.testproblems.cifar10_resnet32 import (
-    cifar10_resnet32,
-    net_cifar10_resnet32,
-)
+from deepobs.pytorch.testproblems.cifar10_resnet32 import cifar10_resnet32
 
-# from backpack.extensions import BatchGrad, DiagGGNExact
-
-
-# ------------------------------------------------------------------------------
-# Print some information about the resnet and check if it works with BackPACK
-# ------------------------------------------------------------------------------
+# Set up testproblem
+testproblem = cifar10_resnet32(batch_size=128)
 torch.manual_seed(0)
-model = net_cifar10_resnet32()
-# print("model = \n", model)
+testproblem.set_up()
 
-# Get some CIFAR-10 data
-# testproblem = cifar10_resnet32(batch_size=128)
-# testproblem.set_up()
+# Extract model
+model = testproblem.net
+# print("model = \n", model)
+model = model.eval()  # batch normalization layers not supproted in train mode
+
+# Data
 # train_loader, _ = testproblem.data._make_train_and_valid_dataloader()
 # batch_data = next(iter(train_loader))
 # torch.save(batch_data, "batch_data.pt")
-inputs, labels = torch.load("batch_data.pt")
-print("inputs.shape = ", inputs.shape)
-print("labels.shape = ", labels.shape)
+batch_data = torch.load("batch_data.pt")
+inputs, labels = batch_data
 
-# Put the model in evaluation mode (because batch normalization layers that are
-# not supported in train mode)
-model = model.eval()
+# Lossfunc
+lossfunc = testproblem.loss_function()
+
+
+# ------------------------------------------------------------------------------
+# Test forward pass
+# ------------------------------------------------------------------------------
+print("\n===== Test: Forward pass =====")
 
 # Forward pass
 outputs = model(inputs)
 print("outputs.shape = ", outputs.shape)
-
-lossfunc = torch.nn.CrossEntropyLoss()
 print("loss = ", lossfunc(outputs, labels))
 
+
+# ------------------------------------------------------------------------------
+# Test BackPACK
+# ------------------------------------------------------------------------------
+
 # Extend model and loss function
-lossfunc = extend(torch.nn.CrossEntropyLoss())
-# model = extend(model, use_converter=True, debug=False)
+lossfunc = extend(lossfunc)
+
+print("\n===== Converting model =====")
+model = extend(model, use_converter=True, debug=False)
+print("Done")
 
 # Test first-order extention
-# print("\nTest first-order extension")
-# loss = lossfunc(model(inputs), labels)
-# with backpack(BatchGrad()):
-#    loss.backward()
+print("\n===== Test: First-order extension =====")
+loss = lossfunc(model(inputs), labels)
+with backpack(BatchGrad()):
+    loss.backward()
+print("Done")
 
 # Test second-order extension
-# print("\nTest second-order extension")
-# loss = lossfunc(model(inputs), labels)
-# with backpack(DiagGGNExact()):
-#     loss.backward()
+print("\n===== Test: Second-order extension =====")
+loss = lossfunc(model(inputs), labels)
+with backpack(DiagGGNExact()):
+    loss.backward()
+print("Done")
 
+
+# ------------------------------------------------------------------------------
 # Test ViViT
+# ------------------------------------------------------------------------------
 # TODO
 
 
 # ------------------------------------------------------------------------------
-# Running an optimizer on the testproblem
+# Test DeepOBS
 # ------------------------------------------------------------------------------
 optimizer_class = SGD
 hyperparams = {
@@ -76,3 +87,4 @@ hyperparams = {
 
 runner = pt.runners.StandardRunner(optimizer_class, hyperparams)
 # runner.run("cifar10_resnet32", batch_size=128, num_epochs=2)
+print("Done")
