@@ -64,9 +64,8 @@ class BasicBlock(nn.Module):
         if stride != 1 or in_planes != planes:
             if option == "A":
                 """For CIFAR10 ResNet paper uses this option A."""
-                self.shortcut = nn.ConstantPad1d(
-                    (0, 0, 0, 0, planes // 4, planes // 4), 0
-                )
+                padding = (0, 0, 0, 0, planes // 4, planes // 4)
+                self.shortcut = nn.ZeroPad2d(padding)
             elif option == "B":
                 raise RuntimeError("Option B not supported.")
 
