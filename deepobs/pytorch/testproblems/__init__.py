@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from .cifar10_3c3d import cifar10_3c3d
-from .cifar10_resnet32nobn import cifar10_resnet32nobn
+from .cifar10_resnet32 import cifar10_resnet32
 from .cifar10_vgg16 import cifar10_vgg16
 from .cifar10_vgg19 import cifar10_vgg19
 from .cifar100_3c3d import cifar100_3c3d

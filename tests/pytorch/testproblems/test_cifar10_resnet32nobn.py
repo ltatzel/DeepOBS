@@ -1,4 +1,4 @@
-"""Test the CIFAR-10 problem with the ResNet32 (BN replaced by Identity).
+"""Test the CIFAR-10 problem with the ResNet32.
 
 Check that BackPACK's extensions and ViViT works with this architecture. 
 Also check compatibility with DeepOBS by running the StandardRunner.
@@ -10,18 +10,18 @@ import torch
 from backpack import backpack, extend
 from backpack.core.derivatives.convnd import weight_jac_t_save_memory
 from backpack.extensions import BatchGrad, DiagGGNExact
-from deepobs import pytorch as pt
-from deepobs.pytorch.testproblems.cifar10_resnet32nobn import cifar10_resnet32nobn
 from torch.optim import SGD
+
+from deepobs import pytorch as pt
+from deepobs.pytorch.testproblems.cifar10_resnet32 import cifar10_resnet32
 from vivit.linalg.eigh import EighComputation
 
-
 # Set up testproblem
-testproblem = cifar10_resnet32nobn(batch_size=16)
+testproblem = cifar10_resnet32(batch_size=16)
 torch.manual_seed(0)
 testproblem.set_up()
 
-# Extract model
+# Extract model and set to evaluation mode (this is required by BackPACK)
 model = testproblem.net.eval()
 
 # Data
@@ -43,6 +43,7 @@ print("\n===== Test: Forward pass =====")
 outputs = model(inputs)
 print("outputs.shape = ", outputs.shape)
 print("loss = ", lossfunc(outputs, labels))
+
 
 # ------------------------------------------------------------------------------
 # Test BackPACK extend
@@ -124,5 +125,5 @@ hyperparams = {
 }
 
 runner = pt.runners.StandardRunner(optimizer_class, hyperparams)
-runner.run("cifar10_resnet32nobn", batch_size=64, num_epochs=2)
+runner.run("cifar10_resnet32", batch_size=128, num_epochs=2)
 print("Done")
