@@ -38,6 +38,7 @@ TP_NAMING = {
     "wrn404": "Wide ResNet 40-4",
     "inception_v3": "Inception-v3",
     "char_rnn": "Char RNN",
+    "resnet32": "ResNet32",
 }
 DATA_DIR = "data_deepobs"
 
