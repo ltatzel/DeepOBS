@@ -1,13 +1,10 @@
 """Testproblem for ResNet32 on CIFAR-10."""
 
-from torch.nn import CrossEntropyLoss
-
-from ..datasets.cifar10 import cifar10
-from .testproblem import UnregularizedTestproblem
+from .cifar10_resnet_base import cifar10_resnet
 from .testproblems_modules_resnets import resnet32
 
 
-class cifar10_resnet32(UnregularizedTestproblem):
+class cifar10_resnet32(cifar10_resnet):
     """DeepOBS problem for ResNet32 on CIFAR-10.
 
     NOTE: Since the ResNet32 architecture uses batch normalizuation layers, the
@@ -15,10 +12,4 @@ class cifar10_resnet32(UnregularizedTestproblem):
     BackPACK.
     """
 
-    def set_up(self):
-        """Set up the testproblem, i.e. (data, loss_function and network)"""
-        self.data = cifar10(self._batch_size)
-        self.loss_function = CrossEntropyLoss
-        self.net = resnet32()
-        self.net.to(self._device)
-        self.regularization_groups = self.get_regularization_groups()
+    net_fn = resnet32

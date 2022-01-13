@@ -38,7 +38,12 @@ TP_NAMING = {
     "wrn404": "Wide ResNet 40-4",
     "inception_v3": "Inception-v3",
     "char_rnn": "Char RNN",
+    "resnet20": "ResNet20",
     "resnet32": "ResNet32",
+    "resnet44": "ResNet44",
+    "resnet56": "ResNet56",
+    "resnet110": "ResNet110",
+    "resnet1202": "ResNet1202",
 }
 DATA_DIR = "data_deepobs"
 
@@ -47,7 +52,12 @@ DEFAULT_TEST_PROBLEMS_SETTINGS = {
     "mnist_vae": {"batch_size": 64, "num_epochs": 50},
     "fmnist_2c2d": {"batch_size": 128, "num_epochs": 100},
     "cifar10_3c3d": {"batch_size": 128, "num_epochs": 100},
+    "cifar10_resnet20": {"batch_size": 128, "num_epochs": 180},
     "cifar10_resnet32": {"batch_size": 128, "num_epochs": 180},
+    "cifar10_resnet44": {"batch_size": 128, "num_epochs": 180},
+    "cifar10_resnet56": {"batch_size": 128, "num_epochs": 180},
+    "cifar10_resnet110": {"batch_size": 128, "num_epochs": 180},
+    "cifar10_resnet1202": {"batch_size": 128, "num_epochs": 180},
     "fmnist_vae": {"batch_size": 64, "num_epochs": 100},
     "cifar100_allcnnc": {"batch_size": 256, "num_epochs": 350},
     "cifar100_wrn164": {"batch_size": 128, "num_epochs": 160},
