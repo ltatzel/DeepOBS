@@ -26,8 +26,6 @@ class cifar10_resnet(UnregularizedTestproblem):
     BackPACK.
     """
 
-    net_fn: Callable[[], Module]
-
     def set_up(self):
         """Set up the testproblem, i.e. (data, loss_function and network)"""
         self.data = cifar10(self._batch_size)
@@ -35,3 +33,7 @@ class cifar10_resnet(UnregularizedTestproblem):
         self.net = self.net_fn()
         self.net.to(self._device)
         self.regularization_groups = self.get_regularization_groups()
+
+    @staticmethod
+    def net_fn() -> Module:
+        raise NotImplementedError("Must be implemented by child class.")

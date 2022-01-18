@@ -1,5 +1,7 @@
 """Testproblem for ResNet1202 on CIFAR-10."""
 
+from torch.nn import Module
+
 from .cifar10_resnet_base import cifar10_resnet
 from .testproblems_modules_resnets import resnet1202
 
@@ -12,4 +14,6 @@ class cifar10_resnet1202(cifar10_resnet):
     BackPACK.
     """
 
-    net_fn = resnet1202
+    @staticmethod
+    def net_fn() -> Module:
+        return resnet1202()
