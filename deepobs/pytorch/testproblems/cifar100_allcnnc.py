@@ -50,13 +50,10 @@ class cifar100_allcnnc(WeightRegularizedTestproblem):
     def set_up(self):
         """Set up the All CNN C test problem on Cifar-100."""
 
-        # FIX: To make the training data determinsitic, we change two things
-        # here:
-        #   1) Since the split into training- and validation data is not
+        # FIX: Since the split into training- and validation data is not
         #      deterministic, we don't use the validation set.
-        #   2) We don't use data augmentation.
         self.data = cifar100(
-            self._batch_size, data_augmentation=False, train_eval_size=0
+            self._batch_size, data_augmentation=True, train_eval_size=0
         )
 
         self.loss_function = nn.CrossEntropyLoss
