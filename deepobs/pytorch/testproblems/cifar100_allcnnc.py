@@ -53,10 +53,12 @@ class cifar100_allcnnc(WeightRegularizedTestproblem):
         # FIX: To make the training data determinsitic, we change two things
         # here:
         #   1) Since the split into training- and validation data is not
-        #      deterministic, we don't use the validation set.
+        #      deterministic, we don't use the validation set. A value of `1`
+        #      is required because otherwise, in the evaluation of the
+        #      validation loss/accuracy, we divide by 0.
         #   2) We don't use data augmentation.
         self.data = cifar100(
-            self._batch_size, data_augmentation=False, train_eval_size=0
+            self._batch_size, data_augmentation=False, train_eval_size=1
         )
 
         self.loss_function = nn.CrossEntropyLoss
