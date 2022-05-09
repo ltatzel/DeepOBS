@@ -10,6 +10,7 @@ from random import seed
 
 import numpy as np
 import torch
+
 from deepobs import config as global_config
 from deepobs.abstract_runner.abstract_runner import Runner
 
@@ -118,12 +119,9 @@ class PTRunner(Runner):
                 accuracy += batch_accuracy
             except StopIteration:
                 break
-        
-        try:
-            loss /= batchCount
-            accuracy /= batchCount
-        except ZeroDivisionError:
-            return None, None
+
+        loss /= batchCount
+        accuracy /= batchCount
 
         if accuracy != 0.0:
             print("{0:s} loss {1:g}, acc {2:f}".format(msg, loss, accuracy))
