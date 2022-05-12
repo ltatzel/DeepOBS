@@ -767,7 +767,7 @@ class net_quadratic_deep(nn.Sequential):
 
     @staticmethod
     def _compute_sqrt(mat):
-        return torch.cholesky(mat)
+        return torch.linalg.cholesky(mat)
 
 
 class net_mlp(nn.Sequential):
