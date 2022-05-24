@@ -624,7 +624,12 @@ class Runner(abc.ABC):
         self._add_hyperparams_to_argparse(parser, args, hyperparams)
         self._add_training_params_to_argparse(parser, args, training_params)
 
-        cmdline_args = vars(parser.parse_args())
+        # Parse command line arguments (`clargs`)
+        known_clargs, unknown_clargs = parser.parse_known_args()
+        if len(unknown_clargs) > 0:
+            warn_msg = "[DeepOBS] Received unknown command line argument(s): "
+            warnings.warn(warn_msg + str(unknown_clargs))
+        cmdline_args = vars(known_clargs)
         args.update(cmdline_args)
 
         # put all optimizer hyperparams in one subdict
