@@ -73,6 +73,11 @@ class DataSet(abc.ABC):
             indices[self._train_eval_size :],
             indices[: self._train_eval_size],
         )
+
+        # Store indices of training set (these are needed for
+        # `_make_train_eval_dataloader`)
+        self._train_indices = train_indices
+
         train_sampler = SubsetRandomSampler(train_indices)
         valid_sampler = SubsetRandomSampler(valid_indices)
         return train_sampler, valid_sampler
@@ -92,8 +97,7 @@ class DataSet(abc.ABC):
         Returns:
           A torch.utils.data.DataLoader instance with batches of training evaluatoion data.
         """
-        size = len(self._train_dataloader.dataset)
-        sampler = train_eval_sampler(size, self._train_eval_size)
+        sampler = train_eval_sampler(self._train_indices, self._train_eval_size)
         return self._make_dataloader(self._train_dataloader.dataset, sampler=sampler)
 
     @abc.abstractmethod
