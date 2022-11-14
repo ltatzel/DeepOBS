@@ -7,12 +7,13 @@ https://github.com/pytorch/vision/tree/release/0.13/references/classification
 
 from torch import nn
 from torchvision.models import resnet50
+
 from deepobs.pytorch.testproblems.testproblem import TestProblem
 
 
 class imagenet_resnet50(TestProblem):
     """DeepOBS test problem class for the ResNet50 network on ImageNet.
-    
+
     TODO
     """
 
@@ -37,11 +38,11 @@ class imagenet_resnet50(TestProblem):
     def set_up(self):
         """Set up the test problem."""
         # self.data = imagenet(self._batch_size)
-        
-        # Define loss function 
+
+        # Define loss function
         self.loss_function = nn.CrossEntropyLoss
 
-        # Define model 
+        # Define model
         weights = "IMAGENET1K_V1" if self.pretrained else None
         self.net = resnet50(weights=weights)
         self.net.to(self._device)
@@ -56,5 +57,5 @@ if __name__ == "__main__":
 
     tp = imagenet_resnet50()
     tp.set_up()
-    
+
     print("===== DONE =====\n")
