@@ -11,7 +11,7 @@ LOG:
   `main` function (see https://github.com/pytorch/vision/blob/bddbd7e6d65ecacc2e40cf6c9e2059669b8dbd44/references/classification/train.py#L182-L366)
   is called. For the DeepOBS testproblem, we have to define the data, the model,
   the loss-function and the regularizer.
-- Data:
+- Data: The relevant code is here: https://github.com/pytorch/vision/blob/bddbd7e6d65ecacc2e40cf6c9e2059669b8dbd44/references/classification/train.py#L197-L221.
   TODO
 - Model: The relevant code is here: https://github.com/pytorch/vision/blob/bddbd7e6d65ecacc2e40cf6c9e2059669b8dbd44/references/classification/train.py#L223-L228.
   The model is simply taken from `torchvision` and moved to the GPU.
@@ -20,7 +20,6 @@ LOG:
   This code calls `utils.set_weight_decay` with all parameters set to `None`
   except `model` and `weight_decay`. We simply copy this function. The default
   weight decay is set to `1e-4`.
-  TODO: Does this use L2 regularization (also with the constant 0.5?)
 """  # noqa: E501
 
 from torch import nn
@@ -183,4 +182,4 @@ if __name__ == "__main__":
     tp.set_up()
 
     # Test if regularization loss works
-    print("Regularization loss = ", tp.get_regularization_loss())
+    print("\nRegularization loss = ", tp.get_regularization_loss())
