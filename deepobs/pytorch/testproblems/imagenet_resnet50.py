@@ -1,11 +1,13 @@
 """Implementation of the DeepOBS test problem `imagenet_resnet50`.
 
 NOTE: This implementation is based on torch 1.12.1 and torchvision 0.13.1 and
-might not work with other versions. It is entirely extracted from: 
+might not work with other versions. It is entirely extracted from:
 https://github.com/pytorch/vision/tree/release/0.13/references/classification.
-The most important functionality is implemented in `train.py`. 
+The most important functionality is implemented in `train.py`. Some auxiliary
+functions and classes were taken from `sampler.py`, `presets.py`,
+`transforms.py`, and `utils.py`.
 
-LOG:
+LOG: 
 - The training routine is called via `torchrun --nproc_per_node=8 train.py
   --model "resnet50"`. So, it uses the default parameters that can be extracted
   from the `get_args_parser` function in `train.py`. 
@@ -22,7 +24,7 @@ LOG:
 VALIDATION: To validate the correctness of the implementation, we computed the
 test acc (76.10 %) which is very close to the accuracy reported here (76.13 %):
 https://pytorch.org/vision/main/models/generated/torchvision.models.resnet50.html#torchvision.models.resnet50
-"""
+"""  # noqa: E501
 
 import errno
 import math
@@ -42,10 +44,10 @@ from deepobs.config import get_data_dir
 from deepobs.pytorch.datasets.dataset import DataSet
 from deepobs.pytorch.testproblems.testproblem import TestProblem
 
-# Paths to ImageNet dataset on Slurm
-TRAINSET_PATH = r"/mnt/qb/datasets/ImageNet2012/train"
-VALSET_PATH = r"/mnt/qb/datasets/ImageNet2012/val"
 
+# ==============================================================================
+# Auxiliary functions and classes
+# ==============================================================================
 
 class RASampler(torch.utils.data.Sampler):
     """Sampler that restricts data loading to a subset of the dataset for
@@ -285,85 +287,26 @@ class ClassificationPresetEval:
         return self.transforms(img)
 
 
-def load_data(traindir, valdir, args):
-    # Data loading code
-    print("Loading data")
-    val_resize_size, val_crop_size, train_crop_size = (
-        args.val_resize_size,
-        args.val_crop_size,
-        args.train_crop_size,
-    )
-    interpolation = InterpolationMode(args.interpolation)
+# ==============================================================================
+# ImageNet data set
+# ==============================================================================
 
-    print("Loading training data")
-    st = time.time()
-    cache_path = _get_cache_path(traindir)
-    if args.cache_dataset and os.path.exists(cache_path):
-        # Attention, as the transforms are also cached!
-        print(f"Loading dataset_train from {cache_path}")
-        dataset, _ = torch.load(cache_path)
-    else:
-        auto_augment_policy = getattr(args, "auto_augment", None)
-        random_erase_prob = getattr(args, "random_erase", 0.0)
-        dataset = torchvision.datasets.ImageFolder(
-            traindir,
-            ClassificationPresetTrain(
-                crop_size=train_crop_size,
-                interpolation=interpolation,
-                auto_augment_policy=auto_augment_policy,
-                random_erase_prob=random_erase_prob,
-            ),
-        )
-        if args.cache_dataset:
-            print(f"Saving dataset_train to {cache_path}")
-            mkdir(os.path.dirname(cache_path))
-            save_on_master((dataset, traindir), cache_path)
-    print("Took", time.time() - st)
+# Paths to ImageNet dataset on Slurm
+TRAINSET_PATH = r"/mnt/qb/datasets/ImageNet2012/train"
+VALSET_PATH = r"/mnt/qb/datasets/ImageNet2012/val"
 
-    print("Loading validation data")
-    cache_path = _get_cache_path(valdir)
-    if args.cache_dataset and os.path.exists(cache_path):
-        # Attention, as the transforms are also cached!
-        print(f"Loading dataset_test from {cache_path}")
-        dataset_test, _ = torch.load(cache_path)
-    else:
-        if args.weights and args.test_only:
-            weights = torchvision.models.get_weight(args.weights)
-            preprocessing = weights.transforms()
-        else:
-            preprocessing = ClassificationPresetEval(
-                crop_size=val_crop_size,
-                resize_size=val_resize_size,
-                interpolation=interpolation,
-            )
-
-        dataset_test = torchvision.datasets.ImageFolder(
-            valdir,
-            preprocessing,
-        )
-        if args.cache_dataset:
-            print(f"Saving dataset_test to {cache_path}")
-            mkdir(os.path.dirname(cache_path))
-            save_on_master((dataset_test, valdir), cache_path)
-
-    print("Creating data loaders")
-    if args.distributed:
-        if hasattr(args, "ra_sampler") and args.ra_sampler:
-            train_sampler = RASampler(
-                dataset, shuffle=True, repetitions=args.ra_reps
-            )
-        else:
-            train_sampler = torch.utils.data.distributed.DistributedSampler(
-                dataset
-            )
-        test_sampler = torch.utils.data.distributed.DistributedSampler(
-            dataset_test, shuffle=False
-        )
-    else:
-        train_sampler = torch.utils.data.RandomSampler(dataset)
-        test_sampler = torch.utils.data.SequentialSampler(dataset_test)
-
-    return dataset, dataset_test, train_sampler, test_sampler
+# Some defualt parameters extracted from `get_args_parser` in `train.py`
+DEFAULT_ARGS = {
+    "val_resize_size": 256,
+    "val_crop_size": 224,
+    "train_crop_size": 224,
+    "interpolation": "bilinear",
+    "cache_dataset": False,
+    "weights": "IMAGENET1K_V1",
+    "test_only": False,
+}
+DEFAULT_ARGS = SimpleNamespace(**DEFAULT_ARGS)
+init_distributed_mode(DEFAULT_ARGS)
 
 
 class imagenet_data(DataSet):
@@ -373,36 +316,102 @@ class imagenet_data(DataSet):
         """TODO"""
         self._name = "imagenet"
 
-        args = {
-            "val_resize_size": 256,
-            "val_crop_size": 224,
-            "train_crop_size": 224,
-            "interpolation": "bilinear",
-            "cache_dataset": False,
-            "weights": "IMAGENET1K_V1",
-            "test_only": False,
-            "auto_augment": None,
-            "random_erase": 0.0,
-        }
-        args = SimpleNamespace(**args)
-        init_distributed_mode(args)
-
-        dataset, dataset_test, train_sampler, test_sampler = load_data(
-            TRAINSET_PATH, VALSET_PATH, args
+        train_data, test_data, train_sampler, test_sampler = self.load_data(
+            TRAINSET_PATH, VALSET_PATH, DEFAULT_ARGS
         )
 
-        self._dataset = dataset
-        self._dataset_test = dataset_test
+        self._train_data = train_data
+        self._test_data = test_data
         self._train_sampler = train_sampler
         self._test_sampler = test_sampler
 
         super().__init__(batch_size)
 
+    @staticmethod
+    def load_data(traindir, valdir, args):
+        """TODO"""
+
+        print("Loading data")
+        val_resize_size, val_crop_size, train_crop_size = (
+            args.val_resize_size,
+            args.val_crop_size,
+            args.train_crop_size,
+        )
+        interpolation = InterpolationMode(args.interpolation)
+
+        print("Loading training data")
+        cache_path = _get_cache_path(traindir)
+        if args.cache_dataset and os.path.exists(cache_path):
+            # Attention, as the transforms are also cached!
+            print(f"Loading dataset_train from {cache_path}")
+            dataset, _ = torch.load(cache_path)
+        else:
+            auto_augment_policy = getattr(args, "auto_augment", None)
+            random_erase_prob = getattr(args, "random_erase", 0.0)
+            dataset = torchvision.datasets.ImageFolder(
+                traindir,
+                ClassificationPresetTrain(
+                    crop_size=train_crop_size,
+                    interpolation=interpolation,
+                    auto_augment_policy=auto_augment_policy,
+                    random_erase_prob=random_erase_prob,
+                ),
+            )
+            if args.cache_dataset:
+                print(f"Saving dataset_train to {cache_path}")
+                mkdir(os.path.dirname(cache_path))
+                save_on_master((dataset, traindir), cache_path)
+
+        print("Loading validation data")
+        cache_path = _get_cache_path(valdir)
+        if args.cache_dataset and os.path.exists(cache_path):
+            # Attention, as the transforms are also cached!
+            print(f"Loading dataset_test from {cache_path}")
+            dataset_test, _ = torch.load(cache_path)
+        else:
+            if args.weights and args.test_only:
+                weights = torchvision.models.get_weight(args.weights)
+                preprocessing = weights.transforms()
+            else:
+                preprocessing = ClassificationPresetEval(
+                    crop_size=val_crop_size,
+                    resize_size=val_resize_size,
+                    interpolation=interpolation,
+                )
+
+            dataset_test = torchvision.datasets.ImageFolder(
+                valdir,
+                preprocessing,
+            )
+            if args.cache_dataset:
+                print(f"Saving dataset_test to {cache_path}")
+                mkdir(os.path.dirname(cache_path))
+                save_on_master((dataset_test, valdir), cache_path)
+
+        print("Creating data loaders")
+        if args.distributed:
+            if hasattr(args, "ra_sampler") and args.ra_sampler:
+                train_sampler = RASampler(
+                    dataset, shuffle=True, repetitions=args.ra_reps
+                )
+            else:
+                train_sampler = torch.utils.data.distributed.DistributedSampler(
+                    dataset
+                )
+            test_sampler = torch.utils.data.distributed.DistributedSampler(
+                dataset_test, shuffle=False
+            )
+        else:
+            train_sampler = torch.utils.data.RandomSampler(dataset)
+            test_sampler = torch.utils.data.SequentialSampler(dataset_test)
+
+        return dataset, dataset_test, train_sampler, test_sampler
+
     def _make_train_and_valid_dataloader(self):
         """TODO"""
 
         train_loader = torch.utils.data.DataLoader(
-            self._dataset,
+            self._train_data,
             batch_size=self._batch_size,
             sampler=self._train_sampler,
             num_workers=self._num_workers,
@@ -418,7 +427,7 @@ class imagenet_data(DataSet):
 
         # TODO (so far, same as train_laoder)
         train_eval_loader = torch.utils.data.DataLoader( 
-            self._dataset,
+            self._train_data,
             batch_size=self._batch_size,
             sampler=self._train_sampler,
             num_workers=self._num_workers,
@@ -431,7 +440,7 @@ class imagenet_data(DataSet):
         """TODO"""
 
         test_loader = torch.utils.data.DataLoader(
-            self._dataset_test, 
+            self._test_data, 
             batch_size=self._batch_size, 
             sampler=self._test_sampler, 
             num_workers=self._num_workers, 
@@ -440,6 +449,10 @@ class imagenet_data(DataSet):
         #print("size(test_loader) = ", len(test_loader.dataset))
         return test_loader
 
+
+# ==============================================================================
+# ImageNet-ResNet50 test problem
+# ==============================================================================
 
 class imagenet_resnet50(TestProblem):
     """DeepOBS test problem class for the ResNet50 network on ImageNet data.
