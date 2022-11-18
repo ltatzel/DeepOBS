@@ -22,23 +22,378 @@ LOG:
   weight decay is set to `1e-4`.
 """  # noqa: E501
 
+import errno
+import math
+import os
+import time
+from types import SimpleNamespace
+
+import torch
+import torch.distributed as dist
+import torchvision
 from torch import nn
 from torchvision.models import resnet50
+from torchvision.transforms import autoaugment, transforms
+from torchvision.transforms.functional import InterpolationMode
 
+from deepobs.config import get_data_dir
 from deepobs.pytorch.datasets.dataset import DataSet
 from deepobs.pytorch.testproblems.testproblem import TestProblem
+
+# Paths to ImageNet dataset on Slurm
+TRAINSET_PATH = r"/mnt/qb/datasets/ImageNet2012/train"
+VALSET_PATH = r"/mnt/qb/datasets/ImageNet2012/val"
+
+
+class RASampler(torch.utils.data.Sampler):
+    """Sampler that restricts data loading to a subset of the dataset for
+    distributed, with repeated augmentation. It ensures that different each
+    augmented version of a sample will be visible to a different process (GPU).
+    Heavily based on 'torch.utils.data.DistributedSampler'. This is borrowed
+    from the DeiT Repo:
+    https://github.com/facebookresearch/deit/blob/main/samplers.py
+    """
+
+    def __init__(
+        self,
+        dataset,
+        num_replicas=None,
+        rank=None,
+        shuffle=True,
+        seed=0,
+        repetitions=3,
+    ):
+        if num_replicas is None:
+            if not dist.is_available():
+                raise RuntimeError(
+                    "Requires distributed package to be available!"
+                )
+            num_replicas = dist.get_world_size()
+        if rank is None:
+            if not dist.is_available():
+                raise RuntimeError(
+                    "Requires distributed package to be available!"
+                )
+            rank = dist.get_rank()
+        self.dataset = dataset
+        self.num_replicas = num_replicas
+        self.rank = rank
+        self.epoch = 0
+        self.num_samples = int(
+            math.ceil(
+                len(self.dataset) * float(repetitions) / self.num_replicas
+            )
+        )
+        self.total_size = self.num_samples * self.num_replicas
+        self.num_selected_samples = int(
+            math.floor(len(self.dataset) // 256 * 256 / self.num_replicas)
+        )
+        self.shuffle = shuffle
+        self.seed = seed
+        self.repetitions = repetitions
+
+    def __iter__(self):
+        if self.shuffle:
+            # Deterministically shuffle based on epoch
+            g = torch.Generator()
+            g.manual_seed(self.seed + self.epoch)
+            indices = torch.randperm(len(self.dataset), generator=g).tolist()
+        else:
+            indices = list(range(len(self.dataset)))
+
+        # Add extra samples to make it evenly divisible
+        indices = [ele for ele in indices for i in range(self.repetitions)]
+        indices += indices[: (self.total_size - len(indices))]
+        assert len(indices) == self.total_size
+
+        # Subsample
+        indices = indices[self.rank : self.total_size : self.num_replicas]
+        assert len(indices) == self.num_samples
+
+        return iter(indices[: self.num_selected_samples])
+
+    def __len__(self):
+        return self.num_selected_samples
+
+    def set_epoch(self, epoch):
+        self.epoch = epoch
+
+
+def init_distributed_mode(args):
+    if "RANK" in os.environ and "WORLD_SIZE" in os.environ:
+        args.rank = int(os.environ["RANK"])
+        args.world_size = int(os.environ["WORLD_SIZE"])
+        args.gpu = int(os.environ["LOCAL_RANK"])
+    elif "SLURM_PROCID" in os.environ:
+        args.rank = int(os.environ["SLURM_PROCID"])
+        args.gpu = args.rank % torch.cuda.device_count()
+    elif hasattr(args, "rank"):
+        pass
+    else:
+        print("Not using distributed mode")
+        args.distributed = False
+        return
+
+    args.distributed = True
+
+    torch.cuda.set_device(args.gpu)
+    args.dist_backend = "nccl"
+    print(f"| distributed init (rank {args.rank}): {args.dist_url}", flush=True)
+    torch.distributed.init_process_group(
+        backend=args.dist_backend,
+        init_method=args.dist_url,
+        world_size=args.world_size,
+        rank=args.rank,
+    )
+    torch.distributed.barrier()
+    setup_for_distributed(args.rank == 0)
+
+
+def setup_for_distributed(is_master):
+    """
+    This function disables printing when not in master process
+    """
+    import builtins as __builtin__
+
+    builtin_print = __builtin__.print
+
+    def print(*args, **kwargs):
+        force = kwargs.pop("force", False)
+        if is_master or force:
+            builtin_print(*args, **kwargs)
+
+    __builtin__.print = print
+
+
+def _get_cache_path(filepath):
+    import hashlib
+
+    h = hashlib.sha1(filepath.encode()).hexdigest()
+    cache_path = os.path.join(
+        "~", ".torch", "vision", "datasets", "imagefolder", h[:10] + ".pt"
+    )
+    cache_path = os.path.expanduser(cache_path)
+    return cache_path
+
+
+def mkdir(path):
+    try:
+        os.makedirs(path)
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            raise
+
+
+def is_dist_avail_and_initialized():
+    if not dist.is_available():
+        return False
+    if not dist.is_initialized():
+        return False
+    return True
+
+
+def get_rank():
+    if not is_dist_avail_and_initialized():
+        return 0
+    return dist.get_rank()
+
+
+def is_main_process():
+    return get_rank() == 0
+
+
+def save_on_master(*args, **kwargs):
+    if is_main_process():
+        torch.save(*args, **kwargs)
+
+
+class ClassificationPresetTrain:
+    def __init__(
+        self,
+        *,
+        crop_size,
+        mean=(0.485, 0.456, 0.406),
+        std=(0.229, 0.224, 0.225),
+        interpolation=InterpolationMode.BILINEAR,
+        hflip_prob=0.5,
+        auto_augment_policy=None,
+        random_erase_prob=0.0,
+    ):
+        trans = [
+            transforms.RandomResizedCrop(crop_size, interpolation=interpolation)
+        ]
+        if hflip_prob > 0:
+            trans.append(transforms.RandomHorizontalFlip(hflip_prob))
+        if auto_augment_policy is not None:
+            if auto_augment_policy == "ra":
+                trans.append(
+                    autoaugment.RandAugment(interpolation=interpolation)
+                )
+            elif auto_augment_policy == "ta_wide":
+                trans.append(
+                    autoaugment.TrivialAugmentWide(interpolation=interpolation)
+                )
+            elif auto_augment_policy == "augmix":
+                trans.append(autoaugment.AugMix(interpolation=interpolation))
+            else:
+                aa_policy = autoaugment.AutoAugmentPolicy(auto_augment_policy)
+                trans.append(
+                    autoaugment.AutoAugment(
+                        policy=aa_policy, interpolation=interpolation
+                    )
+                )
+        trans.extend(
+            [
+                transforms.PILToTensor(),
+                transforms.ConvertImageDtype(torch.float),
+                transforms.Normalize(mean=mean, std=std),
+            ]
+        )
+        if random_erase_prob > 0:
+            trans.append(transforms.RandomErasing(p=random_erase_prob))
+
+        self.transforms = transforms.Compose(trans)
+
+    def __call__(self, img):
+        return self.transforms(img)
+
+
+class ClassificationPresetEval:
+    def __init__(
+        self,
+        *,
+        crop_size,
+        resize_size=256,
+        mean=(0.485, 0.456, 0.406),
+        std=(0.229, 0.224, 0.225),
+        interpolation=InterpolationMode.BILINEAR,
+    ):
+
+        self.transforms = transforms.Compose(
+            [
+                transforms.Resize(resize_size, interpolation=interpolation),
+                transforms.CenterCrop(crop_size),
+                transforms.PILToTensor(),
+                transforms.ConvertImageDtype(torch.float),
+                transforms.Normalize(mean=mean, std=std),
+            ]
+        )
+
+    def __call__(self, img):
+        return self.transforms(img)
+
+
+def load_data(traindir, valdir, args):
+    # Data loading code
+    print("Loading data")
+    val_resize_size, val_crop_size, train_crop_size = (
+        args.val_resize_size,
+        args.val_crop_size,
+        args.train_crop_size,
+    )
+    interpolation = InterpolationMode(args.interpolation)
+
+    print("Loading training data")
+    st = time.time()
+    cache_path = _get_cache_path(traindir)
+    if args.cache_dataset and os.path.exists(cache_path):
+        # Attention, as the transforms are also cached!
+        print(f"Loading dataset_train from {cache_path}")
+        dataset, _ = torch.load(cache_path)
+    else:
+        auto_augment_policy = getattr(args, "auto_augment", None)
+        random_erase_prob = getattr(args, "random_erase", 0.0)
+        dataset = torchvision.datasets.ImageFolder(
+            traindir,
+            ClassificationPresetTrain(
+                crop_size=train_crop_size,
+                interpolation=interpolation,
+                auto_augment_policy=auto_augment_policy,
+                random_erase_prob=random_erase_prob,
+            ),
+        )
+        if args.cache_dataset:
+            print(f"Saving dataset_train to {cache_path}")
+            mkdir(os.path.dirname(cache_path))
+            save_on_master((dataset, traindir), cache_path)
+    print("Took", time.time() - st)
+
+    print("Loading validation data")
+    cache_path = _get_cache_path(valdir)
+    if args.cache_dataset and os.path.exists(cache_path):
+        # Attention, as the transforms are also cached!
+        print(f"Loading dataset_test from {cache_path}")
+        dataset_test, _ = torch.load(cache_path)
+    else:
+        if args.weights and args.test_only:
+            weights = torchvision.models.get_weight(args.weights)
+            preprocessing = weights.transforms()
+        else:
+            preprocessing = ClassificationPresetEval(
+                crop_size=val_crop_size,
+                resize_size=val_resize_size,
+                interpolation=interpolation,
+            )
+
+        dataset_test = torchvision.datasets.ImageFolder(
+            valdir,
+            preprocessing,
+        )
+        if args.cache_dataset:
+            print(f"Saving dataset_test to {cache_path}")
+            mkdir(os.path.dirname(cache_path))
+            save_on_master((dataset_test, valdir), cache_path)
+
+    print("Creating data loaders")
+    if args.distributed:
+        if hasattr(args, "ra_sampler") and args.ra_sampler:
+            train_sampler = RASampler(
+                dataset, shuffle=True, repetitions=args.ra_reps
+            )
+        else:
+            train_sampler = torch.utils.data.distributed.DistributedSampler(
+                dataset
+            )
+        test_sampler = torch.utils.data.distributed.DistributedSampler(
+            dataset_test, shuffle=False
+        )
+    else:
+        train_sampler = torch.utils.data.RandomSampler(dataset)
+        test_sampler = torch.utils.data.SequentialSampler(dataset_test)
+
+    return dataset, dataset_test, train_sampler, test_sampler
 
 
 class imagenet_data(DataSet):
     """DeepOBS data set class for the `ImageNet` data set"""
 
-    def __init__(
-        self, batch_size, data_augmentation=True, train_eval_size=50000
-    ):
+    def __init__(self, batch_size):
         """TODO"""
         self._name = "imagenet"
-        self._data_augmentation = data_augmentation
-        self._train_eval_size = train_eval_size
+
+        args = {
+            "val_resize_size": 256,
+            "val_crop_size": 224,
+            "train_crop_size": 224,
+            "interpolation": "bilinear",
+            "cache_dataset": False,
+            "weights": "IMAGENET1K_V1",
+            "test_only": False,
+            "auto_augment": None,  #
+            "random_erase": 0.0,
+        }
+        args = SimpleNamespace(**args)
+        init_distributed_mode(args)
+
+        dataset, dataset_test, train_sampler, test_sampler = load_data(
+            TRAINSET_PATH, VALSET_PATH, args
+        )
+
+        self._dataset = dataset
+        self._dataset_test = dataset_test
+        self._train_sampler = train_sampler
+        self._test_sampler = test_sampler
+
         super().__init__(batch_size)
 
     def _make_train_and_valid_dataloader(self):
@@ -198,28 +553,3 @@ class imagenet_resnet50(TestProblem):
 
         # Define parameter groups for regularization
         self.regularization_groups = self.get_regularization_groups()
-
-
-if __name__ == "__main__":
-
-    # Create test problem instance
-    tp = imagenet_resnet50()
-
-    # Test if methods work
-    print("\nSet up test problem")
-    tp.set_up()
-
-    # Set testproblem to different modes
-    modes = {
-        "train": tp.train_init_op,
-        "train_eval": tp.train_eval_init_op,
-        "test": tp.test_init_op,
-    }
-
-    for mode_name, mode_func in modes.items():
-        print("\nMode = ", mode_name)
-        # mode_func()
-
-        # loss, acc = tp.get_batch_loss_and_accuracy()
-        # print(f"Mini-batch loss = {loss:.3f}, acc = {100 * acc:.2f} %")
-        print(f"Regularization loss = {tp.get_regularization_loss():.3f}")
