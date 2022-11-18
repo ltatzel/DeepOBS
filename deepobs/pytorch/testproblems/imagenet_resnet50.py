@@ -11,7 +11,9 @@ LOG:
 - The training routine is called via `torchrun --nproc_per_node=8 train.py
   --model "resnet50"`. So, it uses the default parameters that can be extracted
   from the `get_args_parser` function in `train.py`. 
-- Data: TODO
+- Data: Loading the data is implemented in `train.py` in the `load_data`
+  function (see line 113). The data sets have to be downloaded manually - we
+  use the data that is already on Slurm (see `TRAINSET_PATH` and `VALSET_PATH`).
 - Model: The model is simply taken from `torchvision`. By default, the
   pre-trained model is used.
 - Loss-function: The loss function is defined as cross entropy loss (see line
@@ -47,6 +49,7 @@ from deepobs.pytorch.testproblems.testproblem import TestProblem
 
 # ==============================================================================
 # Auxiliary functions and classes
+# (required by the `load_data` method below)
 # ==============================================================================
 
 class RASampler(torch.utils.data.Sampler):
@@ -154,9 +157,7 @@ def init_distributed_mode(args):
 
 
 def setup_for_distributed(is_master):
-    """
-    This function disables printing when not in master process
-    """
+    """This function disables printing when not in master process"""
     import builtins as __builtin__
 
     builtin_print = __builtin__.print
@@ -297,29 +298,31 @@ VALSET_PATH = r"/mnt/qb/datasets/ImageNet2012/val"
 
 # Some defualt parameters extracted from `get_args_parser` in `train.py`
 DEFAULT_ARGS = {
-    "val_resize_size": 256,
-    "val_crop_size": 224,
-    "train_crop_size": 224,
-    "interpolation": "bilinear",
-    "cache_dataset": False,
-    "weights": "IMAGENET1K_V1",
-    "test_only": False,
+    "val_resize_size": 256,  # resize images
+    "val_crop_size": 224,  # crop images, use only center
+    "train_crop_size": 224,  # crop images, use only center
+    "interpolation": "bilinear",  # resize images using bilinear interpolation
+    "cache_dataset": False,  # cache the datasets
+    "weights": "IMAGENET1K_V1",  # weight for pre-trained model
+    "test_only": False,  # only test the model
 }
 DEFAULT_ARGS = SimpleNamespace(**DEFAULT_ARGS)
 init_distributed_mode(DEFAULT_ARGS)
+assert not DEFAULT_ARGS.distributed, "Distributed setting not supported"
 
 
 class imagenet_data(DataSet):
     """DeepOBS data set class for the `ImageNet` data set"""
 
     def __init__(self, batch_size):
-        """TODO"""
+        """Create a new data set instance."""
+
         self._name = "imagenet"
 
+        # Create data sets and samplers
         train_data, test_data, train_sampler, test_sampler = self.load_data(
             TRAINSET_PATH, VALSET_PATH, DEFAULT_ARGS
         )
-
         self._train_data = train_data
         self._test_data = test_data
         self._train_sampler = train_sampler
@@ -329,17 +332,17 @@ class imagenet_data(DataSet):
 
     @staticmethod
     def load_data(traindir, valdir, args):
-        """TODO"""
+        """Set up the data sets and data samplers. This is a copy of 
+        https://github.com/pytorch/vision/blob/bddbd7e6d65ecacc2e40cf6c9e2059669b8dbd44/references/classification/train.py#L113-L179.
+        """  # noqa: E501
 
-        print("Loading data")
-        val_resize_size, val_crop_size, train_crop_size = (
-            args.val_resize_size,
-            args.val_crop_size,
-            args.train_crop_size,
-        )
+        # Extract parameters
+        val_resize_size = args.val_resize_size, 
+        val_crop_size=args.val_crop_size 
+        train_crop_size = args.train_crop_size
         interpolation = InterpolationMode(args.interpolation)
 
-        print("Loading training data")
+        print("Loading training data...")
         cache_path = _get_cache_path(traindir)
         if args.cache_dataset and os.path.exists(cache_path):
             # Attention, as the transforms are also cached!
@@ -362,7 +365,7 @@ class imagenet_data(DataSet):
                 mkdir(os.path.dirname(cache_path))
                 save_on_master((dataset, traindir), cache_path)
 
-        print("Loading validation data")
+        print("Loading validation data...")
         cache_path = _get_cache_path(valdir)
         if args.cache_dataset and os.path.exists(cache_path):
             # Attention, as the transforms are also cached!
@@ -388,7 +391,7 @@ class imagenet_data(DataSet):
                 mkdir(os.path.dirname(cache_path))
                 save_on_master((dataset_test, valdir), cache_path)
 
-        print("Creating data loaders")
+        print("Creating data samplers")
         if args.distributed:
             if hasattr(args, "ra_sampler") and args.ra_sampler:
                 train_sampler = RASampler(
@@ -408,7 +411,7 @@ class imagenet_data(DataSet):
         return dataset, dataset_test, train_sampler, test_sampler
 
     def _make_train_and_valid_dataloader(self):
-        """TODO"""
+        """Create the training and validation data loader."""
 
         train_loader = torch.utils.data.DataLoader(
             self._train_data,
@@ -423,7 +426,9 @@ class imagenet_data(DataSet):
         return train_loader, valid_loader
 
     def _make_train_eval_dataloader(self):
-        """TODO"""
+        """Create the training data loader for evaluating the training metrics
+        during training.
+        """
 
         # TODO (so far, same as train_laoder)
         train_eval_loader = torch.utils.data.DataLoader( 
@@ -437,7 +442,7 @@ class imagenet_data(DataSet):
         return train_eval_loader
 
     def _make_test_dataloader(self):
-        """TODO"""
+        """Create the test data loader."""
 
         test_loader = torch.utils.data.DataLoader(
             self._test_data, 
@@ -455,16 +460,10 @@ class imagenet_data(DataSet):
 # ==============================================================================
 
 class imagenet_resnet50(TestProblem):
-    """DeepOBS test problem class for the ResNet50 network on ImageNet data.
-
-    TODO
-    """
+    """DeepOBS test problem class for the ResNet50 network on ImageNet data."""
 
     def __init__(self, batch_size=32, l2_reg=1e-4, pretrained=True):
-        """Create a new problem instance.
-
-        TODO
-        """
+        """Create a new problem instance."""
         super().__init__(batch_size, l2_reg)
         self.pretrained = pretrained
 
@@ -481,7 +480,8 @@ class imagenet_resnet50(TestProblem):
         specifies the L2 regularization constant) and `"params"` (which
         represents the corresponding parameters).
 
-        This is a copy of https://github.com/pytorch/vision/blob/bddbd7e6d65ecacc2e40cf6c9e2059669b8dbd44/references/classification/utils.py#L406-L465.
+        This is a copy of 
+        https://github.com/pytorch/vision/blob/bddbd7e6d65ecacc2e40cf6c9e2059669b8dbd44/references/classification/utils.py#L406-L465.
 
         If `norm_weight_decay`, `norm_classes` and `custom_keys_weight_decay`
         are all `None`, this function simplifies to:
