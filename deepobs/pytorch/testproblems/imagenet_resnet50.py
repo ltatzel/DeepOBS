@@ -1,26 +1,28 @@
 """Implementation of the DeepOBS test problem `imagenet_resnet50`.
 
 NOTE: This implementation is based on torch 1.12.1 and torchvision 0.13.1 and
-might not work with other versions. It is extracted from: https://github.com/pytorch/vision/tree/release/0.13/references/classification
+might not work with other versions. It is entirely extracted from: 
+https://github.com/pytorch/vision/tree/release/0.13/references/classification.
+The most important functionality is implemented in `train.py`. 
 
 LOG:
 - The training routine is called via `torchrun --nproc_per_node=8 train.py
-  --model $MODEL`. So, it uses the default parameters that can be extracted from
-  the `get_args_parser` function at https://github.com/pytorch/vision/blob/bddbd7e6d65ecacc2e40cf6c9e2059669b8dbd44/references/classification/train.py#L369-L496
-- After collecting the command line arguments (or using the defaults), the
-  `main` function (see https://github.com/pytorch/vision/blob/bddbd7e6d65ecacc2e40cf6c9e2059669b8dbd44/references/classification/train.py#L182-L366)
-  is called. For the DeepOBS testproblem, we have to define the data, the model,
-  the loss-function and the regularizer.
-- Data: The relevant code is here: https://github.com/pytorch/vision/blob/bddbd7e6d65ecacc2e40cf6c9e2059669b8dbd44/references/classification/train.py#L197-L221.
-  TODO
-- Model: The relevant code is here: https://github.com/pytorch/vision/blob/bddbd7e6d65ecacc2e40cf6c9e2059669b8dbd44/references/classification/train.py#L223-L228.
-  The model is simply taken from `torchvision` and moved to the GPU.
-- Loss-function: The loss function is defined as cross entropy loss here: https://github.com/pytorch/vision/blob/bddbd7e6d65ecacc2e40cf6c9e2059669b8dbd44/references/classification/train.py#L230.
-- Regularizer: The regularizer is defined here: https://github.com/pytorch/vision/blob/bddbd7e6d65ecacc2e40cf6c9e2059669b8dbd44/references/classification/train.py#L232-L243.
-  This code calls `utils.set_weight_decay` with all parameters set to `None`
-  except `model` and `weight_decay`. We simply copy this function. The default
-  weight decay is set to `1e-4`.
-"""  # noqa: E501
+  --model "resnet50"`. So, it uses the default parameters that can be extracted
+  from the `get_args_parser` function in `train.py`. 
+- Data: TODO
+- Model: The model is simply taken from `torchvision`. By default, the
+  pre-trained model is used.
+- Loss-function: The loss function is defined as cross entropy loss (see line
+  230 in `train.py`)
+- Regularizer: The regularizer is defined in lines 232-243. This code calls
+  `utils.set_weight_decay` with all parameters set to `None` except `model` and
+  `weight_decay`. We simply copy this function. The default weight decay is set
+  to `1e-4`.
+
+VALIDATION: To validate the correctness of the implementation, we computed the
+test acc (76.10 %) which is very close to the accuracy reported here (76.13 %):
+https://pytorch.org/vision/main/models/generated/torchvision.models.resnet50.html#torchvision.models.resnet50
+"""
 
 import errno
 import math
@@ -379,7 +381,7 @@ class imagenet_data(DataSet):
             "cache_dataset": False,
             "weights": "IMAGENET1K_V1",
             "test_only": False,
-            "auto_augment": None,  #
+            "auto_augment": None,
             "random_erase": 0.0,
         }
         args = SimpleNamespace(**args)
