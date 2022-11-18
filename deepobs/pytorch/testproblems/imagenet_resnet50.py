@@ -398,18 +398,44 @@ class imagenet_data(DataSet):
 
     def _make_train_and_valid_dataloader(self):
         """TODO"""
-        train_loader = None  # TODO
-        valid_loader = None  # TODO
+
+        train_loader = torch.utils.data.DataLoader(
+            self._dataset,
+            batch_size=self._batch_size,
+            sampler=self._train_sampler,
+            num_workers=self._num_workers,
+            pin_memory=self._pin_memory,
+        )
+        valid_loader = train_loader  # TODO
+        #print("size(valid_loader) = ", len(valid_loader.dataset))
+        #print("size(train_loader) = ", len(train_loader.dataset))
         return train_loader, valid_loader
 
     def _make_train_eval_dataloader(self):
         """TODO"""
-        train_eval_loader = None  # TODO
+
+        # TODO (so far, same as train_laoder)
+        train_eval_loader = torch.utils.data.DataLoader( 
+            self._dataset,
+            batch_size=self._batch_size,
+            sampler=self._train_sampler,
+            num_workers=self._num_workers,
+            pin_memory=self._pin_memory,
+        )
+        #print("size(train_eval_loader) = ", len(train_eval_loader.dataset))
         return train_eval_loader
 
     def _make_test_dataloader(self):
         """TODO"""
-        test_loader = None  # TODO
+
+        test_loader = torch.utils.data.DataLoader(
+            self._dataset_test, 
+            batch_size=self._batch_size, 
+            sampler=self._test_sampler, 
+            num_workers=self._num_workers, 
+            pin_memory=self._pin_memory,
+        )
+        #print("size(test_loader) = ", len(test_loader.dataset))
         return test_loader
 
 
