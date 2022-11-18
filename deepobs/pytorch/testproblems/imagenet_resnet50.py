@@ -25,11 +25,36 @@ LOG:
 from torch import nn
 from torchvision.models import resnet50
 
+from deepobs.pytorch.datasets.dataset import DataSet
 from deepobs.pytorch.testproblems.testproblem import TestProblem
 
 
+class imagenet_data(DataSet):
+    """DeepOBS data set class for the `ImageNet` data set"""
+
+    def __init__(
+        self, batch_size, data_augmentation=True, train_eval_size=50000
+    ):
+        """TODO"""
+        self._name = "imagenet"
+        self._data_augmentation = data_augmentation
+        self._train_eval_size = train_eval_size
+        super().__init__(batch_size)
+
+    def _make_train_and_valid_dataloader(self):
+        """TODO"""
+        train_loader = None  # TODO
+        valid_loader = None  # TODO
+        return train_loader, valid_loader
+
+    def _make_test_dataloader(self):
+        """TODO"""
+        test_loader = None  # TODO
+        return test_loader
+
+
 class imagenet_resnet50(TestProblem):
-    """DeepOBS test problem class for the ResNet50 network on ImageNet.
+    """DeepOBS test problem class for the ResNet50 network on ImageNet data.
 
     TODO
     """
@@ -160,7 +185,8 @@ class imagenet_resnet50(TestProblem):
 
     def set_up(self):
         """Set up the test problem."""
-        # self.data = imagenet(self._batch_size)
+        # Set up data loaders
+        self.data = imagenet_data(self._batch_size)
 
         # Define loss function
         self.loss_function = nn.CrossEntropyLoss
@@ -176,10 +202,24 @@ class imagenet_resnet50(TestProblem):
 
 if __name__ == "__main__":
 
-    print("\nSet up testproblem")
-
+    # Create test problem instance
     tp = imagenet_resnet50()
+
+    # Test if methods work
+    print("\nSet up test problem")
     tp.set_up()
 
-    # Test if regularization loss works
-    print("\nRegularization loss = ", tp.get_regularization_loss())
+    # Set testproblem to different modes
+    modes = {
+        "train": tp.train_init_op,
+        "train_eval": tp.train_eval_init_op,
+        "test": tp.test_init_op,
+    }
+
+    for mode_name, mode_func in modes.items():
+        print("\nMode = ", mode_name)
+        # mode_func()
+
+        # loss, acc = tp.get_batch_loss_and_accuracy()
+        # print(f"Mini-batch loss = {loss:.3f}, acc = {100 * acc:.2f} %")
+        print(f"Regularization loss = {tp.get_regularization_loss():.3f}")
