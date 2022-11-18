@@ -402,6 +402,11 @@ class imagenet_data(DataSet):
         valid_loader = None  # TODO
         return train_loader, valid_loader
 
+    def _make_train_eval_dataloader(self):
+        """TODO"""
+        train_eval_loader = None  # TODO
+        return train_eval_loader
+
     def _make_test_dataloader(self):
         """TODO"""
         test_loader = None  # TODO
