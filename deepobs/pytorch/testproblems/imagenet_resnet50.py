@@ -292,9 +292,15 @@ class ClassificationPresetEval:
 # ImageNet data set
 # ==============================================================================
 
-# Paths to ImageNet dataset on Slurm
-TRAINSET_PATH = r"/mnt/qb/datasets/ImageNet2012/train"
-VALSET_PATH = r"/mnt/qb/datasets/ImageNet2012/val"
+# Paths to ImageNet dataset on Slurm.
+# TRAINSET_PATH = r"/mnt/qb/datasets/ImageNet2012/train"
+# VALSET_PATH = r"/mnt/qb/datasets/ImageNet2012/val"
+
+# Paths to ImageNet dataset on Slurm. Use compute notes, where data sets are
+# available locally on the compute node (for faster I/O) by using `sbatch` with 
+# `--constraint=ImageNet2012`.
+TRAINSET_PATH = r"/scratch_local/datasets/ImageNet2012/train"
+VALSET_PATH = r"/scratch_local/datasets/ImageNet2012/val"
 
 # Some defualt parameters extracted from `get_args_parser` in `train.py`
 DEFAULT_ARGS = {
