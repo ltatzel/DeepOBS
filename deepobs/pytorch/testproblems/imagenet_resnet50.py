@@ -23,13 +23,12 @@ LOG:
   `weight_decay`. We simply copy this function. The default weight decay is set
   to `1e-4`.
 
-VALIDATION: To validate the correctness of the implementation, we computed the
-test acc (76.10 %) which is very close to the accuracy reported here (76.13 %):
-https://pytorch.org/vision/main/models/generated/torchvision.models.resnet50.html#torchvision.models.resnet50.
-It seems that the test accuracy outcomes vary slightly despite the runs beeing
-seeded. This might come from non-deterministic behavior of the GPU.
-
-76.16 %
+VALIDATION: At https://pytorch.org/vision/main/models/generated/torchvision.models.resnet50.html#torchvision.models.resnet50,
+a test set accuracy of 76.13 % is reported. We can use this to validate our
+implementation. Our test accuracies are very close with 76.16 %. The difference
+might be due to non-deterministic behavior of the GPU. Also this comment 
+(see https://github.com/pytorch/vision/blob/bddbd7e6d65ecacc2e40cf6c9e2059669b8dbd44/references/classification/train.py#L330)
+states that the backends have a noticeable effect on the accuracy.
 """  # noqa: E501
 
 import errno
