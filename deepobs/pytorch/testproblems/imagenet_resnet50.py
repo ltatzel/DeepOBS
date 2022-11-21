@@ -31,7 +31,6 @@ https://pytorch.org/vision/main/models/generated/torchvision.models.resnet50.htm
 import errno
 import math
 import os
-import time
 from types import SimpleNamespace
 
 import torch
@@ -42,15 +41,14 @@ from torchvision.models import resnet50
 from torchvision.transforms import autoaugment, transforms
 from torchvision.transforms.functional import InterpolationMode
 
-from deepobs.config import get_data_dir
 from deepobs.pytorch.datasets.dataset import DataSet
 from deepobs.pytorch.testproblems.testproblem import TestProblem
-
 
 # ==============================================================================
 # Auxiliary functions and classes
 # (required by the `load_data` method below)
 # ==============================================================================
+
 
 class RASampler(torch.utils.data.Sampler):
     """Sampler that restricts data loading to a subset of the dataset for
@@ -344,13 +342,13 @@ class imagenet_data(DataSet):
 
     @staticmethod
     def load_data(traindir, valdir, args):
-        """Set up the data sets and data samplers. This is a copy of 
+        """Set up the data sets and data samplers. This is a copy of
         https://github.com/pytorch/vision/blob/bddbd7e6d65ecacc2e40cf6c9e2059669b8dbd44/references/classification/train.py#L113-L179.
         """  # noqa: E501
 
         # Extract parameters
-        val_resize_size = args.val_resize_size, 
-        val_crop_size=args.val_crop_size 
+        val_resize_size = (args.val_resize_size,)
+        val_crop_size = args.val_crop_size
         train_crop_size = args.train_crop_size
         interpolation = InterpolationMode(args.interpolation)
 
@@ -453,6 +451,7 @@ class imagenet_data(DataSet):
 # ImageNet-ResNet50 test problem
 # ==============================================================================
 
+
 class imagenet_resnet50(TestProblem):
     """DeepOBS test problem class for the ResNet50 network on ImageNet data."""
 
@@ -474,7 +473,7 @@ class imagenet_resnet50(TestProblem):
         specifies the L2 regularization constant) and `"params"` (which
         represents the corresponding parameters).
 
-        This is a copy of 
+        This is a copy of
         https://github.com/pytorch/vision/blob/bddbd7e6d65ecacc2e40cf6c9e2059669b8dbd44/references/classification/utils.py#L406-L465.
 
         If `norm_weight_decay`, `norm_classes` and `custom_keys_weight_decay`
