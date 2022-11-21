@@ -308,25 +308,31 @@ DEFAULT_ARGS = {
 }
 DEFAULT_ARGS = SimpleNamespace(**DEFAULT_ARGS)
 init_distributed_mode(DEFAULT_ARGS)
-assert not DEFAULT_ARGS.distributed, "Distributed setting not supported"
 
 
 class imagenet_data(DataSet):
     """DeepOBS data set class for the `ImageNet` data set"""
 
-    def __init__(self, batch_size):
-        """Create a new data set instance."""
+    def __init__(self, batch_size, train_eval_size=None):
+        """Create a new data set instance. `train_eval_size` is the size used 
+        for the training evaluation set and for the validation set. If `None`,
+        `train_eval_size` is set to the size of the test set.
+        """
 
         self._name = "imagenet"
 
-        # Create data sets and samplers
-        train_data, test_data, train_sampler, test_sampler = self.load_data(
+        # Create data sets and test sampler (but ignore train sampler)
+        train_data, test_data, _, test_sampler = self.load_data(
             TRAINSET_PATH, VALSET_PATH, DEFAULT_ARGS
         )
         self._train_data = train_data
         self._test_data = test_data
-        self._train_sampler = train_sampler
         self._test_sampler = test_sampler
+
+        # Determine size of validation data and train eval data
+        self._train_eval_size = train_eval_size
+        if train_eval_size is None:  # same as test set size
+            self._train_eval_size = len(self._test_data)
 
         super().__init__(batch_size)
 
@@ -392,6 +398,7 @@ class imagenet_data(DataSet):
                 save_on_master((dataset_test, valdir), cache_path)
 
         print("Creating data samplers")
+        assert not args.distributed, "Distributed setting not supported"
         if args.distributed:
             if hasattr(args, "ra_sampler") and args.ra_sampler:
                 train_sampler = RASampler(
@@ -413,45 +420,26 @@ class imagenet_data(DataSet):
     def _make_train_and_valid_dataloader(self):
         """Create the training and validation data loader."""
 
-        train_loader = torch.utils.data.DataLoader(
-            self._train_data,
-            batch_size=self._batch_size,
-            sampler=self._train_sampler,
-            num_workers=self._num_workers,
-            pin_memory=self._pin_memory,
+        # Create samplers (this uses `self._train_eval_size` for the validation
+        # data)
+        train_sampler, valid_sampler = self._make_train_eval_split_sampler(
+            self._train_data
         )
-        valid_loader = train_loader  # TODO
-        #print("size(valid_loader) = ", len(valid_loader.dataset))
-        #print("size(train_loader) = ", len(train_loader.dataset))
+
+        train_loader = self._make_dataloader(
+            self._train_data, sampler=train_sampler
+        )
+        valid_loader = self._make_dataloader(
+            self._train_data, sampler=valid_sampler
+        )
         return train_loader, valid_loader
-
-    def _make_train_eval_dataloader(self):
-        """Create the training data loader for evaluating the training metrics
-        during training.
-        """
-
-        # TODO (so far, same as train_laoder)
-        train_eval_loader = torch.utils.data.DataLoader( 
-            self._train_data,
-            batch_size=self._batch_size,
-            sampler=self._train_sampler,
-            num_workers=self._num_workers,
-            pin_memory=self._pin_memory,
-        )
-        #print("size(train_eval_loader) = ", len(train_eval_loader.dataset))
-        return train_eval_loader
 
     def _make_test_dataloader(self):
         """Create the test data loader."""
 
-        test_loader = torch.utils.data.DataLoader(
-            self._test_data, 
-            batch_size=self._batch_size, 
-            sampler=self._test_sampler, 
-            num_workers=self._num_workers, 
-            pin_memory=self._pin_memory,
+        test_loader = self._make_dataloader(
+            self._test_data, sampler=self._test_sampler
         )
-        #print("size(test_loader) = ", len(test_loader.dataset))
         return test_loader
 
 
