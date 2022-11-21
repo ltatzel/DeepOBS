@@ -7,8 +7,7 @@ The most important functionality is implemented in `train.py`. Some auxiliary
 functions and classes were taken from `sampler.py`, `presets.py`,
 `transforms.py`, and `utils.py`.
 
-LOG: 
-- The training routine is called via `torchrun --nproc_per_node=8 train.py
+LOG: - The training routine is called via `torchrun --nproc_per_node=8 train.py
   --model "resnet50"`. So, it uses the default parameters that can be extracted
   from the `get_args_parser` function in `train.py`. 
 - Data: Loading the data is implemented in `train.py` in the `load_data`
@@ -25,9 +24,9 @@ LOG:
 
 VALIDATION: At https://pytorch.org/vision/main/models/generated/torchvision.models.resnet50.html#torchvision.models.resnet50,
 a test set accuracy of 76.13 % is reported. We can use this to validate our
-implementation. Our test accuracies are very close with 76.16 %. The difference
-might be due to non-deterministic behavior of the GPU. Also this comment 
-(see https://github.com/pytorch/vision/blob/bddbd7e6d65ecacc2e40cf6c9e2059669b8dbd44/references/classification/train.py#L330)
+implementation. At seed `0`, I got 76.16 % for three consecutive runs but 
+76.12 % at seed `1`. The differences might be due to non-deterministic behavior 
+of the GPU. Also this comment (see https://github.com/pytorch/vision/blob/bddbd7e6d65ecacc2e40cf6c9e2059669b8dbd44/references/classification/train.py#L330)
 states that the backends have a noticeable effect on the accuracy.
 """  # noqa: E501
 
