@@ -298,7 +298,7 @@ class ClassificationPresetEval:
 # VALSET_PATH = r"/mnt/qb/datasets/ImageNet2012/val"
 
 # Paths to ImageNet dataset on Slurm. Use compute notes, where data sets are
-# available locally on the compute node (for faster I/O) by using `sbatch` with 
+# available locally on the compute node (for faster I/O) by using `sbatch` with
 # `--constraint=ImageNet2012`.
 TRAINSET_PATH = r"/scratch_local/datasets/ImageNet2012/train"
 VALSET_PATH = r"/scratch_local/datasets/ImageNet2012/val"
@@ -321,7 +321,7 @@ class imagenet_data(DataSet):
     """DeepOBS data set class for the `ImageNet` data set"""
 
     def __init__(self, batch_size, train_eval_size=None):
-        """Create a new data set instance. `train_eval_size` is the size used 
+        """Create a new data set instance. `train_eval_size` is the size used
         for the training evaluation set and for the validation set. If `None`,
         `train_eval_size` is set to the size of the test set.
         """
@@ -351,7 +351,7 @@ class imagenet_data(DataSet):
 
         # Extract parameters
         val_resize_size = args.val_resize_size
-        val_crop_size = args.val_crop_size 
+        val_crop_size = args.val_crop_size
         train_crop_size = args.train_crop_size
         interpolation = InterpolationMode(args.interpolation)
 
@@ -453,6 +453,7 @@ class imagenet_data(DataSet):
 # ==============================================================================
 # ImageNet-ResNet50 test problem
 # ==============================================================================
+
 
 class imagenet_resnet50(TestProblem):
     """DeepOBS test problem class for the ResNet50 network on ImageNet data."""
