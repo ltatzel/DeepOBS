@@ -12,8 +12,8 @@ LOG:
   --model "resnet50"`. So, it uses the default parameters that can be extracted
   from the `get_args_parser` function in `train.py`. 
 - Data: Loading the data is implemented in `train.py` in the `load_data`
-  function (see line 113). The data sets have to be downloaded manually - we
-  use the data that is already on Slurm (see `TRAINSET_PATH` and `VALSET_PATH`).
+  function (see line 113). The data sets have to be downloaded manually - we use
+  the data that is already on Slurm (see `TRAINSET_PATH` and `VALSET_PATH`).
 - Model: The model is simply taken from `torchvision`. By default, the
   pre-trained model is used.
 - Loss-function: The loss function is defined as cross entropy loss (see line
@@ -25,7 +25,11 @@ LOG:
 
 VALIDATION: To validate the correctness of the implementation, we computed the
 test acc (76.10 %) which is very close to the accuracy reported here (76.13 %):
-https://pytorch.org/vision/main/models/generated/torchvision.models.resnet50.html#torchvision.models.resnet50
+https://pytorch.org/vision/main/models/generated/torchvision.models.resnet50.html#torchvision.models.resnet50.
+It seems that the test accuracy outcomes vary slightly despite the runs beeing
+seeded. This might come from non-deterministic behavior of the GPU.
+
+76.16 %
 """  # noqa: E501
 
 import errno
@@ -347,8 +351,8 @@ class imagenet_data(DataSet):
         """  # noqa: E501
 
         # Extract parameters
-        val_resize_size = (args.val_resize_size,)
-        val_crop_size = args.val_crop_size
+        val_resize_size = args.val_resize_size
+        val_crop_size = args.val_crop_size 
         train_crop_size = args.train_crop_size
         interpolation = InterpolationMode(args.interpolation)
 
@@ -442,7 +446,7 @@ class imagenet_data(DataSet):
         """Create the test data loader."""
 
         test_loader = self._make_dataloader(
-            self._test_data, sampler=self._test_sampler
+            self._test_data, sampler=self._test_sampler, shuffle=False
         )
         return test_loader
 
@@ -450,7 +454,6 @@ class imagenet_data(DataSet):
 # ==============================================================================
 # ImageNet-ResNet50 test problem
 # ==============================================================================
-
 
 class imagenet_resnet50(TestProblem):
     """DeepOBS test problem class for the ResNet50 network on ImageNet data."""
