@@ -316,6 +316,15 @@ DEFAULT_ARGS = SimpleNamespace(**DEFAULT_ARGS)
 init_distributed_mode(DEFAULT_ARGS)
 
 
+class EmptyDataset(torch.utils.data.IterableDataset):
+    """An empty Pytorch dataset"""
+    def __init__(self):
+        super().__init__()
+    
+    def __iter__(self):
+        return iter([])
+
+
 class imagenet_data(DataSet):
     """DeepOBS data set class for the `ImageNet` data set"""
 
@@ -327,15 +336,16 @@ class imagenet_data(DataSet):
 
         self._name = "imagenet"
 
-        # Create data sets and test sampler (but ignore train sampler)
-        train_data, test_data, _, test_sampler = self.load_data(
+        # Create data sets and samplers
+        train_data, test_data, train_sampler, test_sampler = self.load_data(
             TRAINSET_PATH, VALSET_PATH, DEFAULT_ARGS
         )
         self._train_data = train_data
         self._test_data = test_data
+        self._train_sampler = train_sampler
         self._test_sampler = test_sampler
 
-        # Determine size of validation data and train eval data
+        # Determine size of train eval data
         self._train_eval_size = train_eval_size
         if train_eval_size is None:  # same as test set size
             self._train_eval_size = len(self._test_data)
@@ -426,18 +436,13 @@ class imagenet_data(DataSet):
     def _make_train_and_valid_dataloader(self):
         """Create the training and validation data loader."""
 
-        # Create samplers (this uses `self._train_eval_size` for the validation
-        # data)
-        train_sampler, valid_sampler = self._make_train_eval_split_sampler(
-            self._train_data
-        )
-
         train_loader = self._make_dataloader(
-            self._train_data, sampler=train_sampler
+            self._train_data, sampler=self._train_sampler
         )
-        valid_loader = self._make_dataloader(
-            self._train_data, sampler=valid_sampler
-        )
+        self._train_indices = list(range(len(self._train_data)))
+
+        # No validation data
+        valid_loader = torch.utils.data.DataLoader(EmptyDataset())
         return train_loader, valid_loader
 
     def _make_test_dataloader(self):
