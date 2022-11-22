@@ -120,8 +120,11 @@ class PTRunner(Runner):
             except StopIteration:
                 break
 
-        loss /= batchCount
-        accuracy /= batchCount
+        if batchCount > 0:
+            loss /= batchCount
+            accuracy /= batchCount
+        else:
+            return None, None  # empty data loader
 
         if accuracy != 0.0:
             print("{0:s} loss {1:g}, acc {2:f}".format(msg, loss, accuracy))
