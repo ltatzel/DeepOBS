@@ -53,11 +53,11 @@ class DataSet(abc.ABC):
         self._train_eval_dataloader = self._make_train_eval_dataloader()
         self._test_dataloader = self._make_test_dataloader()
 
-    def _make_dataloader(self, dataset, sampler=None, shuffle=False):
+    def _make_dataloader(self, dataset, sampler=None, shuffle=False, drop_last=False):
         loader = dat.DataLoader(
             dataset,
             batch_size=self._batch_size,
-            drop_last=True,
+            drop_last=drop_last,
             pin_memory=self._pin_memory,
             num_workers=self._num_workers,
             sampler=sampler,
@@ -87,7 +87,9 @@ class DataSet(abc.ABC):
             train_dataset
         )
         # since random sampling, shuffle is useless
-        train_loader = self._make_dataloader(train_dataset, sampler=train_sampler)
+        train_loader = self._make_dataloader(
+            train_dataset, sampler=train_sampler, drop_last=True  # drop last!
+        )
         valid_loader = self._make_dataloader(valid_dataset, sampler=valid_sampler)
         return train_loader, valid_loader
 

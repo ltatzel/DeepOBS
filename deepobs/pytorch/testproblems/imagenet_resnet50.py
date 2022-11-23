@@ -442,7 +442,7 @@ class imagenet_data(DataSet):
         """Create the training and validation data loader."""
 
         train_loader = self._make_dataloader(
-            self._train_data, sampler=self._train_sampler
+            self._train_data, sampler=self._train_sampler, drop_last=True
         )
         self._train_indices = list(range(len(self._train_data)))
 
