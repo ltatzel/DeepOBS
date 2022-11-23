@@ -123,7 +123,7 @@ class TestProblem(abc.ABC):
 
         Returns:
             callable:  The function that calculates the loss/accuracy on the
-                current batch.
+                current batch. This function also returns the mini-batch size.
         """
         inputs, labels = self._get_next_batch()
         inputs = inputs.to(self._device)
@@ -153,7 +153,8 @@ class TestProblem(abc.ABC):
             else:
                 regularizer_loss = torch.tensor(0.0, device=torch.device(self._device))
 
-            return loss + regularizer_loss, accuracy
+            # Return mini-batch loss, accuracy and the mini-batch size
+            return loss + regularizer_loss, accuracy, total
 
         return forward_func
 
@@ -171,13 +172,14 @@ class TestProblem(abc.ABC):
 
         Returns:
             float/torch.tensor, float: loss and accuracy of the model on the
-                current batch.
+                current batch and mini-batch size.
         """
         forward_func = self.get_batch_loss_and_accuracy_func(
             reduction=reduction,
             add_regularization_if_available=add_regularization_if_available,
         )
 
+        # Return mini-batch loss, accuracy and the mini-batch size
         return forward_func()
 
     def get_regularization_loss(self):

@@ -113,7 +113,7 @@ class PTRunner(Runner):
         batchCount = 0.0
         while True:
             try:
-                batch_loss, batch_accuracy = tproblem.get_batch_loss_and_accuracy()
+                batch_loss, batch_accuracy = tproblem.get_batch_loss_and_accuracy()[:2]
                 batchCount += 1.0
                 loss += batch_loss.item()
                 accuracy += batch_accuracy
@@ -236,7 +236,7 @@ class StandardRunner(PTRunner):
             while True:
                 try:
                     opt.zero_grad()
-                    batch_loss, _ = tproblem.get_batch_loss_and_accuracy()
+                    batch_loss = tproblem.get_batch_loss_and_accuracy()[0]
                     batch_loss.backward()
                     opt.step()
 
@@ -423,8 +423,7 @@ class LearningRateScheduleRunner(PTRunner):
             while True:
                 try:
                     opt.zero_grad()
-                    batch_loss, _ = tproblem.get_batch_loss_and_accuracy()
-
+                    batch_loss = tproblem.get_batch_loss_and_accuracy()[0]
                     batch_loss.backward()
                     opt.step()
 
