@@ -467,8 +467,15 @@ class imagenet_data(DataSet):
 class imagenet_resnet50(TestProblem):
     """DeepOBS test problem class for the ResNet50 network on ImageNet data."""
 
-    def __init__(self, batch_size=32, l2_reg=1e-4, pretrained=True):
-        """Create a new problem instance."""
+    def __init__(self, batch_size=256, l2_reg=1e-4, pretrained=True):
+        """Create a new problem instance. 
+        
+        NOTE: Note that the default batch size is set to `256`, because the
+        original training script uses `--nproc_per_node=8` GPUs with a batch
+        size of `32`. The gradients are averaged over all GPUs, i.e. the
+        effective batch size is `8 * 32 = 256`, see 
+        https://github.com/pytorch/vision/blob/bddbd7e6d65ecacc2e40cf6c9e2059669b8dbd44/references/classification/train.py#L378.
+        """  # noqa: E501
         super().__init__(batch_size, l2_reg)
         self.pretrained = pretrained
 
