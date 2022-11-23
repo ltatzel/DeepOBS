@@ -34,6 +34,7 @@ import errno
 import math
 import os
 from types import SimpleNamespace
+from warnings import warn
 
 import torch
 import torch.distributed as dist
@@ -137,10 +138,11 @@ def init_distributed_mode(args):
     elif hasattr(args, "rank"):
         pass
     else:
-        print("Not using distributed mode")
+        # print("Not using distributed mode")
         args.distributed = False
         return
 
+    warn("Using distributed mode")
     args.distributed = True
 
     torch.cuda.set_device(args.gpu)
@@ -367,7 +369,7 @@ class imagenet_data(DataSet):
         train_crop_size = args.train_crop_size
         interpolation = InterpolationMode(args.interpolation)
 
-        print("Loading training data...")
+        # Load training data
         cache_path = _get_cache_path(traindir)
         if args.cache_dataset and os.path.exists(cache_path):
             # Attention, as the transforms are also cached!
@@ -390,7 +392,7 @@ class imagenet_data(DataSet):
                 mkdir(os.path.dirname(cache_path))
                 save_on_master((dataset, traindir), cache_path)
 
-        print("Loading validation data...")
+        # Load validation data (used as test data)
         cache_path = _get_cache_path(valdir)
         if args.cache_dataset and os.path.exists(cache_path):
             # Attention, as the transforms are also cached!
@@ -416,7 +418,7 @@ class imagenet_data(DataSet):
                 mkdir(os.path.dirname(cache_path))
                 save_on_master((dataset_test, valdir), cache_path)
 
-        print("Creating data samplers")
+        # Create data samplers
         assert not args.distributed, "Distributed setting not supported"
         if args.distributed:
             if hasattr(args, "ra_sampler") and args.ra_sampler:
