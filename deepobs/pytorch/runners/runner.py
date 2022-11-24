@@ -107,22 +107,23 @@ class PTRunner(Runner):
         elif phase == "VALID":
             tproblem.valid_init_op()
             msg = "VALID:"
-        # evaluation loop over every batch of the corresponding evaluation set
+        
+        # Evaluation loop over every batch of the corresponding evaluation set
         loss = 0.0
         accuracy = 0.0
-        batchCount = 0.0
+        num_data = 0
         while True:
             try:
-                batch_loss, batch_accuracy = tproblem.get_batch_loss_and_accuracy()[:2]
-                batchCount += 1.0
-                loss += batch_loss.item()
-                accuracy += batch_accuracy
+                batch_loss, batch_acc, batch_size = tproblem.get_batch_loss_and_accuracy()
+                num_data += batch_size
+                loss += batch_size * batch_loss.item()
+                accuracy += batch_size * batch_acc
             except StopIteration:
                 break
 
-        if batchCount > 0:
-            loss /= batchCount
-            accuracy /= batchCount
+        if num_data > 0:
+            loss /= num_data
+            accuracy /= num_data
         else:
             return None, None  # empty data loader
 
