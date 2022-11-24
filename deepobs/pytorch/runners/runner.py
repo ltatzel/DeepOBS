@@ -89,13 +89,15 @@ class PTRunner(Runner):
         Has to be called in the beggining of every epoch within the
         training method. Returns the losses and accuracies.
 
+        NOTE: This function assumes the loss-function to use the "mean" 
+        reduction.
+
         Args:
             tproblem (testproblem): The testproblem instance to evaluate
             phase (str): The phase of the evaluation. Must be one of 'TRAIN', 'VALID' or 'TEST'
         Returns:
             float: The loss of the current state.
             float: The accuracy of the current state.
-
         """
 
         if phase == "TEST":
