@@ -1,33 +1,42 @@
 """Implementation of the DeepOBS test problem `imagenet_resnet50`.
 
-NOTE: This implementation is based on torch 1.12.1 and torchvision 0.13.1 and
-might not work with other versions. It is entirely extracted from:
+REQUIREMENTS: 
+This implementation is based on torch 1.12.1 and torchvision 0.13.1 and might 
+not work with other versions. The function `check_torch_torchvision_versions`
+checks wether the correct versions are used. 
+
+NOTE: 
+The test problem is entirely extracted from
 https://github.com/pytorch/vision/tree/release/0.13/references/classification.
 The most important functionality is implemented in `train.py`. Some auxiliary
 functions and classes were taken from `sampler.py`, `presets.py`,
 `transforms.py`, and `utils.py`.
 
-LOG: - The training routine is called via `torchrun --nproc_per_node=8 train.py
+LOG: 
+- The training routine is called via `torchrun --nproc_per_node=8 train.py
   --model "resnet50"`. So, it uses the default parameters that can be extracted
-  from the `get_args_parser` function in `train.py`. 
+  from the `get_args_parser` function in `train.py`. Note that the "effective"
+  batch size depends on the number of GPUs - in our case, it is `8 * 32 =
+  256`.
 - Data: Loading the data is implemented in `train.py` in the `load_data`
-  function (see line 113). The data sets have to be downloaded manually - we use
-  the data that is already on Slurm (see `TRAINSET_PATH` and `VALSET_PATH`).
+  function. The data sets have to be downloaded manually - we use the data that
+  is already on Slurm (see `TRAINSET_PATH` and `VALSET_PATH`). The ImageNet data
+  set is available at `/mnt/qb/datasets/ImageNet2012`. However, it is also
+  available locally (this makes IO faster) on a subset of the compute nodes
+  accessible via the `sbatch`-option `constraint=ImageNet2012`.
 - Model: The model is simply taken from `torchvision`. By default, the
   pre-trained model is used.
 - Loss-function: The loss function is defined as cross entropy loss (see line
-  230 in `train.py`)
-- Regularizer: The regularizer is defined in lines 232-243. This code calls
-  `utils.set_weight_decay` with all parameters set to `None` except `model` and
-  `weight_decay`. We simply copy this function. The default weight decay is set
-  to `1e-4`.
+  230 in `train.py`).
+- Regularizer: The regularizer is defined in `train.py` in lines 232-243. This
+  code calls `utils.set_weight_decay` with all parameters set to `None` except
+  `model` and `weight_decay`. We simply copy this function. The default weight
+  decay is set to `1e-4`.
 
-VALIDATION: At https://pytorch.org/vision/main/models/generated/torchvision.models.resnet50.html#torchvision.models.resnet50,
-a test set accuracy of 76.13 % is reported. We can use this to validate our
-implementation. At seed `0`, I got 76.16 % for three consecutive runs but 
-76.12 % at seed `1`. The differences might be due to non-deterministic behavior 
-of the GPU. Also this comment (see https://github.com/pytorch/vision/blob/bddbd7e6d65ecacc2e40cf6c9e2059669b8dbd44/references/classification/train.py#L330)
-states that the backends have a noticeable effect on the accuracy.
+VALIDATION: 
+At https://pytorch.org/vision/main/models/generated/torchvision.models.resnet50.html#torchvision.models.resnet50,
+a test set accuracy of 76.13 % is reported. We get the exact same test accuracy
+(for seed `0`), which is an indication of the correctness of our implementation.
 """  # noqa: E501
 
 import errno
@@ -46,6 +55,7 @@ from torchvision.transforms.functional import InterpolationMode
 
 from deepobs.pytorch.datasets.dataset import DataSet
 from deepobs.pytorch.testproblems.testproblem import TestProblem
+
 
 # ==============================================================================
 # Auxiliary functions and classes
@@ -290,13 +300,35 @@ class ClassificationPresetEval:
         return self.transforms(img)
 
 
+class EmptyDataset(torch.utils.data.IterableDataset):
+    """An empty Pytorch dataset"""
+    def __init__(self):
+        super().__init__()
+
+    def __len__(self):
+        return 0
+    
+    def __iter__(self):
+        return iter([])
+
+
+def check_torch_torchvision_versions():
+    """Check if torch and torchvision versions are correct."""
+
+    # torch
+    torch_vers = torch.__version__
+    if not torch_vers == "1.12.1":
+        warn(f"Expected torch version 1.12.1 but found {torch_vers}.")
+
+    # torchvision
+    vision_vers = torchvision.__version__
+    if not vision_vers == "0.13.1":
+        warn(f"Expected torchvision version 0.13.1 but found {vision_vers}.")
+
+
 # ==============================================================================
 # ImageNet data set
 # ==============================================================================
-
-# Paths to ImageNet dataset on Slurm.
-# TRAINSET_PATH = r"/mnt/qb/datasets/ImageNet2012/train"
-# VALSET_PATH = r"/mnt/qb/datasets/ImageNet2012/val"
 
 # Paths to ImageNet dataset on Slurm. Use compute notes, where data sets are
 # available locally on the compute node (for faster I/O) by using `sbatch` with
@@ -318,18 +350,6 @@ DEFAULT_ARGS = SimpleNamespace(**DEFAULT_ARGS)
 init_distributed_mode(DEFAULT_ARGS)
 
 
-class EmptyDataset(torch.utils.data.IterableDataset):
-    """An empty Pytorch dataset"""
-    def __init__(self):
-        super().__init__()
-
-    def __len__(self):
-        return 0
-    
-    def __iter__(self):
-        return iter([])
-
-
 class imagenet_data(DataSet):
     """DeepOBS data set class for the `ImageNet` data set"""
 
@@ -340,6 +360,9 @@ class imagenet_data(DataSet):
         """
 
         self._name = "imagenet"
+
+        # Check torch and torchvision version
+        check_torch_torchvision_versions()
 
         # Create data sets and samplers
         train_data, test_data, train_sampler, test_sampler = self.load_data(
