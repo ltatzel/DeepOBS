@@ -74,7 +74,9 @@ class quadratic(dataset.DataSet):
         Y = self._make_labels()
         valid_dataset = dat.TensorDataset(X, Y)
 
-        train_loader = self._make_dataloader(train_dataset, shuffle=True)
+        train_loader = self._make_dataloader(
+            train_dataset, shuffle=True, drop_last=True
+        )
         valid_loader = self._make_dataloader(valid_dataset)
         return train_loader, valid_loader
 

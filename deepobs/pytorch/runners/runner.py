@@ -89,13 +89,15 @@ class PTRunner(Runner):
         Has to be called in the beggining of every epoch within the
         training method. Returns the losses and accuracies.
 
+        NOTE: This function assumes the loss-function to use the "mean" 
+        reduction.
+
         Args:
             tproblem (testproblem): The testproblem instance to evaluate
             phase (str): The phase of the evaluation. Must be one of 'TRAIN', 'VALID' or 'TEST'
         Returns:
             float: The loss of the current state.
             float: The accuracy of the current state.
-
         """
 
         if phase == "TEST":
@@ -107,22 +109,23 @@ class PTRunner(Runner):
         elif phase == "VALID":
             tproblem.valid_init_op()
             msg = "VALID:"
-        # evaluation loop over every batch of the corresponding evaluation set
+        
+        # Evaluation loop over every batch of the corresponding evaluation set
         loss = 0.0
         accuracy = 0.0
-        batchCount = 0.0
+        num_data = 0
         while True:
             try:
-                batch_loss, batch_accuracy = tproblem.get_batch_loss_and_accuracy()
-                batchCount += 1.0
-                loss += batch_loss.item()
-                accuracy += batch_accuracy
+                batch_loss, batch_acc, batch_size = tproblem.get_batch_loss_and_accuracy()
+                num_data += batch_size
+                loss += batch_size * batch_loss.item()
+                accuracy += batch_size * batch_acc
             except StopIteration:
                 break
 
-        if batchCount > 0:
-            loss /= batchCount
-            accuracy /= batchCount
+        if num_data > 0:
+            loss /= num_data
+            accuracy /= num_data
         else:
             return None, None  # empty data loader
 
@@ -236,7 +239,7 @@ class StandardRunner(PTRunner):
             while True:
                 try:
                     opt.zero_grad()
-                    batch_loss, _ = tproblem.get_batch_loss_and_accuracy()
+                    batch_loss = tproblem.get_batch_loss_and_accuracy()[0]
                     batch_loss.backward()
                     opt.step()
 
@@ -423,8 +426,7 @@ class LearningRateScheduleRunner(PTRunner):
             while True:
                 try:
                     opt.zero_grad()
-                    batch_loss, _ = tproblem.get_batch_loss_and_accuracy()
-
+                    batch_loss = tproblem.get_batch_loss_and_accuracy()[0]
                     batch_loss.backward()
                     opt.step()
 
