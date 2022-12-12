@@ -150,6 +150,6 @@ class quadratic_deep(UnregularizedTestproblem):
             else:
                 regularizer_loss = torch.tensor(0.0, device=torch.device(self._device))
 
-            return loss + regularizer_loss, accuracy
+            return loss + regularizer_loss, accuracy, len(labels)
 
         return forward_func
