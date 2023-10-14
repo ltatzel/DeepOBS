@@ -19,6 +19,7 @@ from .mnist_logreg import mnist_logreg
 from .mnist_mlp import mnist_mlp
 from .mnist_vae import mnist_vae
 from .quadratic_deep import quadratic_deep
+from .noise_free_quadratic import noise_free_quadratic
 from .svhn_3c3d import svhn_3c3d
 from .svhn_wrn164 import svhn_wrn164
 from .testproblem import TestProblem
