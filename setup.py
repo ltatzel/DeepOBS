@@ -21,7 +21,7 @@ def readme():
         str: Content of the README.md file
     """
     with open("README.md") as f:
-        return f.read()
+        return ""  # f.read()  # Fixes error on Windows machines
 
 
 version_dict = {}
