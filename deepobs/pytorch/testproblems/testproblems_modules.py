@@ -676,7 +676,7 @@ class net_cifar100_allcnnc_wo_dropout(nn.Sequential):
         )
         self.add_module("relu3", nn.ReLU())
 
-        self.add_module("dropout2", nn.Dropout(p=0.5))
+        # self.add_module("dropout2", nn.Dropout(p=0.5))
 
         self.add_module(
             "conv4",
@@ -707,7 +707,7 @@ class net_cifar100_allcnnc_wo_dropout(nn.Sequential):
         )
         self.add_module("relu6", nn.ReLU())
 
-        self.add_module("dropout3", nn.Dropout(p=0.5))
+        # self.add_module("dropout3", nn.Dropout(p=0.5))
 
         self.add_module(
             "conv7", tfconv2d(in_channels=192, out_channels=192, kernel_size=3)
