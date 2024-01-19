@@ -5,7 +5,7 @@ from torch import nn
 
 from ..datasets.cifar100 import cifar100
 from .testproblem import WeightRegularizedTestproblem
-from .testproblems_modules import net_cifar100_allcnnc
+from .testproblems_modules import net_cifar100_allcnnc, net_cifar100_allcnnc_wo_dropout
 
 
 class cifar100_allcnnc(WeightRegularizedTestproblem):
@@ -52,5 +52,20 @@ class cifar100_allcnnc(WeightRegularizedTestproblem):
         self.data = cifar100(self._batch_size)
         self.loss_function = nn.CrossEntropyLoss
         self.net = net_cifar100_allcnnc()
+        self.net.to(self._device)
+        self.regularization_groups = self.get_regularization_groups()
+
+
+class cifar100_allcnnc_wo_dropout(WeightRegularizedTestproblem):
+    """Same as `cifar100_allcnnc` but uses the model without dropout"""
+
+    def __init__(self, batch_size, l2_reg=0.0005):
+        super(cifar100_allcnnc_wo_dropout, self).__init__(batch_size, l2_reg)
+
+    def set_up(self):
+        """Set up the All CNN C test problem on Cifar-100."""
+        self.data = cifar100(self._batch_size)
+        self.loss_function = nn.CrossEntropyLoss
+        self.net = net_cifar100_allcnnc_wo_dropout()
         self.net.to(self._device)
         self.regularization_groups = self.get_regularization_groups()

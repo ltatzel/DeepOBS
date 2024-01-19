@@ -5,6 +5,7 @@ from .cifar10_vgg16 import cifar10_vgg16
 from .cifar10_vgg19 import cifar10_vgg19
 from .cifar100_3c3d import cifar100_3c3d
 from .cifar100_allcnnc import cifar100_allcnnc
+from .cifar100_allcnnc import cifar100_allcnnc_wo_dropout
 from .cifar100_vgg16 import cifar100_vgg16
 from .cifar100_vgg19 import cifar100_vgg19
 from .cifar100_wrn164 import cifar100_wrn164
