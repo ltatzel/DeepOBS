@@ -643,9 +643,12 @@ class net_cifar100_allcnnc(nn.Sequential):
 
 
 class net_cifar100_allcnnc_wo_dropout(nn.Sequential):
-    """This is identical to `net_cifar100_allcnnc` but without dropout."""
+    """This is identical to `net_cifar100_allcnnc` but without dropout. Also, we
+    introduce the hyperparameter `num_classes` to allow for the model to be applied to
+    CIFAR-10 as well.
+    """
 
-    def __init__(self):
+    def __init__(self, num_classes=100):
         super(net_cifar100_allcnnc_wo_dropout, self).__init__()
 
         # self.add_module("dropout1", nn.Dropout(p=0.2))
@@ -727,7 +730,7 @@ class net_cifar100_allcnnc_wo_dropout(nn.Sequential):
             "conv9",
             tfconv2d(
                 in_channels=192,
-                out_channels=100,
+                out_channels=num_classes,
                 kernel_size=1,
                 tf_padding_type="same",
             ),

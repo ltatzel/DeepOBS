@@ -46,6 +46,7 @@ DEFAULT_TEST_PROBLEMS_SETTINGS = {
     "mnist_vae": {"batch_size": 64, "num_epochs": 50},
     "fmnist_2c2d": {"batch_size": 128, "num_epochs": 100},
     "cifar10_3c3d": {"batch_size": 128, "num_epochs": 100},
+    "cifar10_allcnnc_wo_dropout": {"batch_size": 256, "num_epochs": 350},
     "fmnist_vae": {"batch_size": 64, "num_epochs": 100},
     "cifar100_allcnnc": {"batch_size": 256, "num_epochs": 350},
     "cifar100_allcnnc_wo_dropout": {"batch_size": 256, "num_epochs": 350},

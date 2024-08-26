@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 
 from .cifar10_3c3d import cifar10_3c3d
+from .cifar10_allcnnc import cifar10_allcnnc_wo_dropout
 from .cifar10_vgg16 import cifar10_vgg16
 from .cifar10_vgg19 import cifar10_vgg19
 from .cifar100_3c3d import cifar100_3c3d
-from .cifar100_allcnnc import cifar100_allcnnc
-from .cifar100_allcnnc import cifar100_allcnnc_wo_dropout
+from .cifar100_allcnnc import cifar100_allcnnc, cifar100_allcnnc_wo_dropout
 from .cifar100_vgg16 import cifar100_vgg16
 from .cifar100_vgg19 import cifar100_vgg19
 from .cifar100_wrn164 import cifar100_wrn164
@@ -14,9 +14,9 @@ from .fmnist_2c2d import fmnist_2c2d
 from .fmnist_logreg import fmnist_logreg
 from .fmnist_mlp import fmnist_mlp
 from .fmnist_vae import fmnist_vae
+from .imagenet_resnet50 import imagenet_resnet50
 from .imagenet_vgg16 import imagenet_vgg16
 from .imagenet_vgg19 import imagenet_vgg19
-from .imagenet_resnet50 import imagenet_resnet50
 from .mnist_2c2d import mnist_2c2d
 from .mnist_logreg import mnist_logreg
 from .mnist_mlp import mnist_mlp
