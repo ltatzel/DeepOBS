@@ -2,7 +2,7 @@
 import torch
 
 DEFAULT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-NUM_WORKERS = 0
+NUM_WORKERS = 12
 IS_DETERMINISTIC = True
 
 
