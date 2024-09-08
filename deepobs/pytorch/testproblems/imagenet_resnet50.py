@@ -216,8 +216,7 @@ class ClassificationPresetTrain:
                 )
         trans.extend(
             [
-                transforms.PILToTensor(),
-                transforms.ConvertImageDtype(torch.float),
+                transforms.ToTensor(),
                 transforms.Normalize(mean=mean, std=std),
             ]
         )
@@ -245,8 +244,7 @@ class ClassificationPresetEval:
             [
                 transforms.Resize(resize_size, interpolation=interpolation),
                 transforms.CenterCrop(crop_size),
-                transforms.PILToTensor(),
-                transforms.ConvertImageDtype(torch.float),
+                transforms.ToTensor(),
                 transforms.Normalize(mean=mean, std=std),
             ]
         )
@@ -288,8 +286,8 @@ def check_torch_torchvision_versions():
 # Paths to ImageNet dataset on Slurm. Use compute notes, where data sets are
 # available locally on the compute node (for faster I/O) by using `sbatch` with
 # `--constraint=ImageNet2012`.
-TRAINSET_PATH = r"/scratch_local/datasets/ImageNet2012/train"
-VALSET_PATH = r"/scratch_local/datasets/ImageNet2012/val"
+TRAINSET_PATH = r"/mnt/lustre/datasets/ImageNet2012/train"
+VALSET_PATH = r"/mnt/lustre/datasets/ImageNet2012/val"
 
 # Some defualt parameters extracted from `get_args_parser` in `train.py`
 DEFAULT_ARGS = {
