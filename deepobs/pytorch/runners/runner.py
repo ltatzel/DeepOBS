@@ -39,7 +39,7 @@ class PTRunner(Runner):
         return
 
     @staticmethod
-    def create_testproblem(testproblem, batch_size, l2_reg, random_seed):
+    def create_testproblem(testproblem, batch_size, l2_reg, random_seed, no_aug=None):
         """Sets up the deepobs.pytorch.testproblems.testproblem instance.
 
         Args:
@@ -69,13 +69,16 @@ class PTRunner(Runner):
             print("Loading local testproblem.")
         except:
             testproblem_cls = getattr(testproblems, testproblem)
-
+        
+        kwargs = dict(batch_size=batch_size)
         # if the user specified L2-regularization, use that one
-        if l2_reg is not None:
-            tproblem = testproblem_cls(batch_size, l2_reg)
         # else use the default of the testproblem
-        else:
-            tproblem = testproblem_cls(batch_size)
+        if l2_reg is not None:
+            kwargs["l2_reg"] = l2_reg
+        if no_aug is not None:
+            kwargs["no_aug"] = no_aug
+
+        tproblem = testproblem_cls(**kwargs)
 
         # Set up the testproblem.
         tproblem.set_up()

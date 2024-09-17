@@ -306,7 +306,7 @@ DEFAULT_ARGS = SimpleNamespace(**DEFAULT_ARGS)
 class imagenet_data(DataSet):
     """DeepOBS data set class for the `ImageNet` data set"""
 
-    def __init__(self, batch_size, train_eval_size=None):
+    def __init__(self, batch_size, no_aug=False, train_eval_size=None):
         """Create a new data set instance. `train_eval_size` is the size used
         for the training evaluation set and for the validation set. If `None`,
         `train_eval_size` is set to the size of the test set.
@@ -319,7 +319,7 @@ class imagenet_data(DataSet):
 
         # Create data sets and samplers
         train_data, test_data, train_sampler, test_sampler = self.load_data(
-            TRAINSET_PATH, VALSET_PATH, DEFAULT_ARGS
+            TRAINSET_PATH, VALSET_PATH, no_aug, DEFAULT_ARGS
         )
         self._train_data = train_data
         self._test_data = test_data
@@ -334,7 +334,7 @@ class imagenet_data(DataSet):
         super().__init__(batch_size)
 
     @staticmethod
-    def load_data(traindir, valdir, args):
+    def load_data(traindir, valdir, no_aug, args):
         """Set up the data sets and data samplers. This is a copy of
         https://github.com/pytorch/vision/blob/bddbd7e6d65ecacc2e40cf6c9e2059669b8dbd44/references/classification/train.py#L113-L179.
         """  # noqa: E501
@@ -361,7 +361,12 @@ class imagenet_data(DataSet):
                     interpolation=interpolation,
                     auto_augment_policy=auto_augment_policy,
                     random_erase_prob=random_erase_prob,
-                ),
+                ) if not no_aug else
+                ClassificationPresetEval(
+                    crop_size=val_crop_size,
+                    resize_size=val_resize_size,
+                    interpolation=interpolation,
+                )
             )
             if args.cache_dataset:
                 print(f"Saving dataset_train to {cache_path}")
@@ -443,7 +448,7 @@ class imagenet_data(DataSet):
 class imagenet_resnet50(TestProblem):
     """DeepOBS test problem class for the ResNet50 network on ImageNet data."""
 
-    def __init__(self, batch_size=256, l2_reg=1e-4, pretrained=True):
+    def __init__(self, batch_size=256, l2_reg=1e-4, no_aug=False, pretrained=True):
         """Create a new problem instance. 
         
         NOTE: Note that the default batch size is set to `256`, because the
@@ -454,6 +459,7 @@ class imagenet_resnet50(TestProblem):
         """  # noqa: E501
         super().__init__(batch_size, l2_reg)
         self.pretrained = pretrained
+        self.no_aug = no_aug
 
     @staticmethod
     def _set_weight_decay(
@@ -575,7 +581,7 @@ class imagenet_resnet50(TestProblem):
     def set_up(self):
         """Set up the test problem."""
         # Set up data loaders
-        self.data = imagenet_data(self._batch_size)
+        self.data = imagenet_data(self._batch_size, self.no_aug)
 
         # Define loss function
         self.loss_function = nn.CrossEntropyLoss
