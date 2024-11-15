@@ -5,3 +5,4 @@ matplotlib
 tikzplotlib
 seaborn
 bayesian-optimization
+timm

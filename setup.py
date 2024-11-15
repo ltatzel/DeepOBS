@@ -11,6 +11,7 @@ install_requires_list = [
     "pandas",
     "seaborn",
     "tikzplotlib",
+    "timm"
 ]
 
 
