@@ -15,6 +15,7 @@ from .fmnist_logreg import fmnist_logreg
 from .fmnist_mlp import fmnist_mlp
 from .fmnist_vae import fmnist_vae
 from .imagenet_resnet50 import imagenet_resnet50
+from .imagenet_vit_little import imagenet_vit_little
 from .imagenet_vgg16 import imagenet_vgg16
 from .imagenet_vgg19 import imagenet_vgg19
 from .mnist_2c2d import mnist_2c2d
