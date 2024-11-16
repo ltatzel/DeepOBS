@@ -61,6 +61,7 @@ DEFAULT_TEST_PROBLEMS_SETTINGS = {
     "mnist_logreg": {"batch_size": 128, "num_epochs": 50},
     "fmnist_logreg": {"batch_size": 128, "num_epochs": 50},
     "imagenet_resnet50": {"batch_size": 256, "num_epochs": 90},
+    "imagenet_vit_little": {"batch_size": 256, "num_epochs": 600}
 }
 
 
